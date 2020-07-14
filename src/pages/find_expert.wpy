@@ -1,0 +1,175 @@
+<template>
+  <view class="container">
+    <picker mode="region" @change="bindRegionChange" value="{{region}}">
+      <view class="picker">{{region[0]}}，{{region[1]}}，{{region[2]}} ▼</view>
+    </picker>
+    <view class="expert-wrap">
+      <navigator class="expert-panel" url="ask_detail?id={{item.id}}" wx:for="{{list}}" wx:key="{{index}}">
+        <i-avatar i-class="avatar" src="{{imgPath}}{{item.photo}}"></i-avatar>
+        <view class="expert-info">
+          <view class="expert-name">{{item.name}}</view>
+          <view class="expert-level"><image class="expert-icon" src="http://192.168.2.230:9096/pigIMG/img/expert-green.png"/>{{item.position}}</view>
+          <view class="address">地址：{{item.province}}{{item.city}}{{item.county}}</view>
+          <view class="company">单位：{{item.company}}</view>
+        </view>
+        <i-icon i-class="enter-icon" type="enter" size="12" color="#C5C5C5"/>
+      </navigator>
+      <i-load-more tip="{{loadMore.tip}}" loading="{{ loadMore.status }}" />
+    </view>
+    <i-toast id="toast" />
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import api from '../api/api'
+import tip from '../utils/tip'
+import { $Toast } from '../iview/base/index'
+import { requestPath } from '@/utils/wxRequest'
+
+export default class Findexpert extends wepy.page {
+  config = {
+    navigationBarTitleText: '问专家',
+    enablePullDownRefresh: true,
+    usingComponents: {
+      'i-avatar': '../iview/avatar/index',
+      'i-icon': '../iview/icon/index',
+      "i-toast": "../iview/toast/index",
+      'i-load-more': '../iview/load-more/index',
+    }
+  }
+  data = {
+    region: ['', '', ''],
+    param:{
+      pageNum:1,
+      pageSize:5,
+      isGPS: true,
+    },
+    list:[],
+    loadMore: {
+      status: true,
+      tip: '加载中'
+    },
+    lastPage:'',
+    imgPath: requestPath.ImgPath,
+  }
+  methods = {
+    bindRegionChange (e) {
+      this.region = e.detail.value;
+      this.param.isGPS = false;
+      this.param.province = this.region[0];
+      this.param.city = this.region[1];
+      this.param.county = this.region[2];
+      this.getList();
+    }
+  }
+  
+  async getList(){
+    let that = this
+    let res = await api.professList({
+      method: 'GET',
+      query: that.param
+    })
+    that.offerLoading = false
+    if (res.data.status) {
+      that.lastPage = res.data.data.lastPage
+      let tempList = res.data.data.list.map(el => {
+        let {name,...rest} = el
+        return {name: name.substring(0,1)+'**', ...rest}
+      })
+      that.list = [...that.list,...tempList]
+      that.$apply()
+    } else {
+      that.showModal('加载失败，请稍后再试')
+    }
+  }
+
+  onLoad() {
+    //获取定位地址
+    if(wx.getStorageSync('province')) {
+      this.param.isGPS = true;
+      console.log(wx.getStorageSync('province'));
+      
+      this.param.province = wx.getStorageSync('province')
+      this.param.city = wx.getStorageSync('city')
+      this.param.county = wx.getStorageSync('county')
+      this.region = [wx.getStorageSync('province'),wx.getStorageSync('city'),wx.getStorageSync('county')];
+    } else {
+      this.param.isGPS = false;
+      this.region = ['', '', '']
+    }
+    
+    this.getList()
+  }
+
+  onPullDownRefresh(){
+    this.getList().then(() => {
+      wx.stopPullDownRefresh()
+    })
+    
+  }
+
+  onReachBottom(){//加载
+    if( this.param.pageNum == this.lastPage){//当前页==最后页
+      this.loadMore = {
+        status: false,
+        tip: '暂无更多'
+      }
+    } else{
+      this.loadMore = {
+        status: true,
+        tip: '加载中'
+      }
+      this.param.pageNum = this.param.pageNum+1;
+      this.getList();
+    } 
+  }
+
+  showModal(error) {//轻提示
+    $Toast({
+      content: error,
+      type: 'error'
+    });
+  }
+}
+</script>
+<style lang="less">
+  page{
+    background-color: #F8F8F8;
+  }
+  .container{
+    position: relative;
+  }
+  picker{
+    height: 80rpx;
+    width: 100%;
+    position: fixed;
+    left: 0;
+    top: 0;
+    background: #F8F8F8;
+    z-index: 9999;
+  }
+  .picker{
+    padding: 18rpx 24rpx;
+    font-size: 32rpx;
+  }
+  
+  .expert-wrap{
+    padding: 0 24rpx;
+    margin-top: 80rpx;
+    background-color: #fff;
+  }
+  .expert-panel{
+    display: flex;
+    justify-content: space-between;
+    height: 262rpx;
+    padding: 38rpx 0;
+    box-sizing: border-box;
+    &:not(:last-of-type){border-bottom: 1rpx solid #EBEBEB;}
+    .avatar{
+      width: 96rpx;
+      height: 96rpx;
+      border-radius: 50%;
+    }
+  }
+</style>

@@ -1,0 +1,382 @@
+<template>
+  <view class="container">
+    
+    <swiper class="swiper" indicator-active-color="{{indicatorActiveColor}}" indicator-color="{{indicatorColor}}" indicator-dots="{{indicatorDots}}" autoplay="{{autoplay}}" interval="{{interval}}" duration="{{duration}}" circular>
+      <block wx:for="{{adList}}" wx:key="key">
+        <swiper-item>
+          <image src="{{item.picUrl}}" class="slide-image" mode="aspectFill" lazy-load="true"/>
+        </swiper-item>
+      </block>
+    </swiper>
+    <navigator class="search-box" url="search_box">
+      <input class="search-input" placeholder="搜索症状、猪病和用药" />
+      <!-- <i-button inline>搜索</i-button> -->
+      <!-- <view class="search-btn">搜索</view> -->
+      <button class="primary-btn" type="primary" size="mini">搜索</button>
+    </navigator>
+    <view class="ask-panel">
+      <view class="panel-title">免费问猪病</view>
+      <view class="panel-detail">职业兽医，<text class="minute">10分钟</text>回答</view>
+      <view>
+        <navigator class="nav-btn" url="quick_ask">快速提问</navigator>
+        <navigator class="nav-btn" url="find_expert">问专家</navigator>
+      </view>
+    </view>
+    
+    <i-tabs i-class="index_tabs" current="{{ currentTab }}" color="#4FAF6E" @change="handleChange">
+      <i-tab i-class="tab-item" key="ask" title="我的提问"></i-tab>
+      <i-tab i-class="tab-item" key="answer" title="我的回答"></i-tab>
+    </i-tabs>
+    
+    <view class="tab_content" hidden="{{currentTab !== 'ask'}}">
+      <navigator class="round-nav bg-green" url="expert_certification"><view>成为</view>专家</navigator>
+      <navigator url="asking_for_detail?id={{item.id}}" class="tab_panel" wx:for="{{askList}}" wx:key="id">
+        <view class="word-wrap">
+          <view class="msg-title {{item.text.ImgPath.length>0? 'quick' : ''}}">{{item.text.stage+'：'+item.text.miaoshu}}</view>
+          <view class="msg-info {{item.text.ImgPath.length>0? 'quick' : ''}}">
+            <view wx:if="{{item.askType ===0}}" class="msg-type ask-type">快速提问</view>
+            <block wx:else>
+              <view class="msg-type expert-type">问专家</view>
+              <view class="expert">
+                <image class="icon" src="{{apiDomain}}/pigIMG/img/expert-icon.png"/>
+                {{item.expertName}}
+              </view>
+            </block>
+            <view>{{item.publishDate}}</view>
+            <view class="commentNum">
+              <image class="icon" src="{{apiDomain}}/pigIMG/img/comment-icon.png"/>
+              {{item.replyNum}}
+            </view>
+          </view>
+        </view>
+        <view class="img_box" wx:if="{{item.text.ImgPath.length>0}}">
+          <image class="image" mode="aspectFill" src="{{imgPath}}{{item.text.ImgPath[0]}}" lazy-load="true"/>
+        </view>
+        <!-- <image wx:if="{{item.adopt}}" class="accept-icon" src="{{apiDomain}}/pigIMG/img/acception.png"/> -->
+      </navigator>
+      <i-load-more tip="{{askLoadMore.tip}}" loading="{{ askLoadMore.status }}" />
+    </view>
+
+    <view class="tab_content" hidden="{{currentTab !== 'answer'}}">
+      <navigator class="round-nav bg-green" url="expert_certification"><view>成为</view>专家</navigator>
+      <view class="tab_panel answer" wx:for="{{answerList}}" wx:key="id">
+        <view class="word-wrap">
+          <navigator class="msg-title" url="class_details_reply?id={{item.id}}">{{item.text}}</navigator>
+          <navigator class="msg-main" url="asking_for_detail?id={{item.talk.id}}">
+            <view class="main-title {{item.talk.text.ImgPath.length<=0?'full':''}}">{{item.talk.text.stage+'：'+item.talk.text.miaoshu}}</view>
+            <view class="img_box" wx:if="{{item.talk.text.ImgPath.length>0}}">
+              <image class="image" mode="aspectFill" src="{{imgPath}}{{item.talk.text.ImgPath[0]}}" lazy-load="true"/>
+            </view>
+          </navigator>
+          <view class="msg-info">
+            <view>{{item.createDate}}</view>
+            <view class="expert">
+              <image class="icon" src="{{apiDomain}}/pigIMG/img/comment-icon.png"/>
+              {{item.replyNum}}
+            </view>
+            <view class="commentNum">
+              <image class="icon" wx:if="{{item.praise}}" src="{{apiDomain}}/pigIMG/icons/gkk_icon_zan_pre@2x.png"/>
+              <image class="icon" wx:else src="{{apiDomain}}/pigIMG/icons/gkk_icon_zan@2x.png"/>
+              {{item.praiseNum}}
+            </view>
+          </view>
+        </view>
+        <image wx:if="{{item.adopt}}" class="accept-icon" src="{{apiDomain}}/pigIMG/img/acception.png"/>
+      </view>
+      <i-load-more tip="{{askLoadMore.tip}}" loading="{{ askLoadMore.status }}" />
+    </view>
+
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import api from '@/api/api';
+import tip from '@/utils/tip'
+import { errorMsg } from '@/utils/publicFunction'
+import { apiDomain, requestPath } from '@/utils/wxRequest'
+
+export default class Question extends wepy.page {
+  config = {
+    navigationBarTitleText: '问答',
+    usingComponents: {
+      'i-load-more': '../iview/load-more/index',
+      'i-tabs': '../iview/tabs/index',
+      'i-tab': '../iview/tab/index',
+      'i-panel': '../iview/panel/index',
+      'i-button': '../iview/button/index'
+    },
+    enablePullDownRefresh: true
+  }
+  components = {
+    
+  }
+  data = {
+    canIUse: wx.canIUse('button.open-type.getUserInfo'),
+    showLogin:true,
+    indicatorActiveColor: '#fff',
+    indicatorColor: 'rgba(255, 255, 255, .6)',
+    indicatorDots: true,
+    autoplay: true,
+    interval: 3000,
+    duration: 1000,
+    adList: [], //轮播
+    /* itemList: [],
+    loadMore: {
+      status: true,
+      tip: '加载中'
+    },
+    listQuery:{
+      pageNum: 1,
+      pageSize: 10
+    }, */
+    apiDomain: apiDomain,
+    imgPath: requestPath.ImgPath,
+    currentTab: 'ask',
+    typeMap: ['ask','reply'],
+    askLoadMore: {
+      status: true,
+      tip: '加载中'
+    },
+    answerLoadMore: {
+      status: true,
+      tip: '加载中'
+    },
+    askList: [],
+    answerList: [],
+    askQuery: {
+      maxPage: null,
+      pageNum: 1,
+      pageSize: 10
+    },
+    answerQuery: {
+      maxPage: null,
+      pageNum: 1,
+      pageSize: 10
+    }
+  }
+
+  async getList(){//获取问答列表
+    let that = this
+    let res = null
+    this.currentTab === 'ask' ? res = await api.myaskListApi({query: this[`${this.currentTab}Query`]}) : res = await api.myreplyListApi({query: this[`${this.currentTab}Query`]})
+    if (res.data.status) {
+      let dataList = null
+      if (that.currentTab=='ask') {
+        dataList = res.data.data.list.map(el => {
+          let {text, ...rest} = el
+          let tempText = JSON.parse(text)
+          if (tempText.ImgPath.length>0) {
+            tempText.miaoshu.length+tempText.stage.length>26? tempText.miaoshu = `${tempText.miaoshu.substring(0,26-tempText.stage.length)}...` : true
+          } else {
+            tempText.miaoshu.length+tempText.stage.length>43? tempText.miaoshu = `${tempText.miaoshu.substring(0,43-tempText.stage.length)}...` : true
+          }
+          return {text: tempText, ...rest}
+        })
+      } else {
+        dataList = res.data.data.list.map(el => {
+          let {talk, ...rest} = el
+          let {text, ...restTalk} = talk
+          let tempText = JSON.parse(text)
+          if (tempText.ImgPath.length>0) {
+            tempText.miaoshu.length+tempText.stage.length>26? tempText.miaoshu = `${tempText.miaoshu.substring(0,26-tempText.stage.length)}...` : true
+          } else {
+            tempText.miaoshu.length+tempText.stage.length>43? tempText.miaoshu = `${tempText.miaoshu.substring(0,43-tempText.stage.length)}...` : true
+          }
+          talk = {text:tempText, ...restTalk}
+          return {talk, ...rest}
+        })
+      }
+      let tempList = [...that[`${that.currentTab}List`], ...dataList]
+      that[`${that.currentTab}List`] = tempList.filter((obj, idx) => tempList.map(item => item.id).indexOf(obj.id) === idx) //去重
+      that[`${that.currentTab}Query`].maxPage = res.data.data.pages
+      if (that[`${that.currentTab}Query`].maxPage <= that[`${that.currentTab}Query`].pageNum) {
+        that[`${that.currentTab}LoadMore`] = { status: false, tip: '暂无更多' }
+      }
+      console.log(that[`${that.currentTab}List`]);
+      that.$apply()
+    } else {
+      errorMsg(res.data, `获取${that.currentTab}列表`)
+    }
+
+  }
+
+  methods = {
+    
+    handleChange ({ detail }) {
+      this.currentTab = detail.key
+      this.getList()
+    }
+  }
+
+  async onLoad() {
+    this.getList()
+    this.imgPath = requestPath.ImgPath
+    
+    if(!wepy.getStorageSync('Y-Token')){
+      wepy.switchTab({
+        url: '/pages/index'
+      })        
+    }
+
+    let adPics = await api.getAdList({id:'wx_index5'}) 
+    adPics.data.data.map((i,k) => {
+      if (i>5) {
+        return
+      }
+      this.adList.push({picUrl:`http://122.14.50.6:8096/file/file/?fileName=${i.picture}&isOnLine=true`, key: k})
+    })
+  }
+
+  onPullDownRefresh() {
+    this.currentTab = 'ask'
+    this.typeMap.forEach((el,idx) => {
+      this[`${el}Query`] = {
+        maxPage: null,
+        talkType: idx,
+        pageNum: 1,
+        pageSize: 10
+      }
+      this[`${el}List`] = []
+    })
+    this.getList().then(() => {
+      wepy.stopPullDownRefresh()
+    })
+  }
+  onReachBottom() { //上拉加载
+    if (this[`${this.currentTab}Query`].pageNum < this[`${this.currentTab}Query`].maxPage) {
+      this[`${this.currentTab}Query`].pageNum++
+      this.getList()
+    }
+  }
+
+}
+</script>
+
+<style lang="less">
+@green: #4FAF6E;
+.swiper{
+  height: 344rpx;
+}
+.ask-panel{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 276rpx;
+  margin: 62rpx 24rpx 28rpx;
+  padding: 44rpx 0;
+  font-size: 26rpx;
+  border-radius: 8rpx;
+  box-shadow: 0 0 20rpx rgba(1, 2, 2, .08);
+  box-sizing: border-box;
+  text-align: center;
+  .panel-title{
+    font-size: 38rpx;
+    font-weight: bold;
+    line-height: 1;
+  }
+  .panel-detail{
+    color: #999;
+    .minute{
+      color: #F48D0E;
+    }
+  }
+  .nav-btn{
+    display: inline-block;
+    width: 176rpx;
+    height: 56rpx;
+    line-height: 56rpx;
+    color: @green;
+    border: 1rpx solid @green;
+    border-radius: 28rpx;
+    &:first-of-type{margin-right: 40rpx;}
+  }
+}
+.answer-title{
+  display: flex;
+  align-items: center;
+  height: 107rpx;
+  color: #333;
+  font-size: 32rpx;
+  font-weight: bold;
+  border-bottom: 1rpx solid #EBEBEB;
+  .QA-icon{
+    width: 44rpx;
+    height: 40rpx;
+    margin: 0 24rpx;
+  }
+}
+.tab_panel{
+  position: relative;
+  &.answer{height: unset;}
+}
+.accept-icon{
+  position: absolute;
+  bottom: 12rpx;
+  left: 308rpx;
+  width: 70rpx;
+  height: 70rpx;
+}
+.msg-main{
+  display: flex;
+  // justify-content: space-between;
+  height: 144rpx;
+  margin: 28rpx 0;
+  background-color: #fafafa;
+  border-radius: 8rpx;
+  .main-title{
+    display: flex;
+    justify-items: center;
+    align-items: center;
+    width: 508rpx;
+    height: 100%;
+    padding: 0 32rpx;
+    color: #666;
+    font-size: 28rpx;
+    box-sizing: border-box;
+    &.full{width: 100%;}
+  }
+  .img_box{
+    flex: initial;
+    width: 194rpx;
+    height: 100%;
+  }
+}
+.msg-info .expert{margin-left: 24rpx;}
+</style>
+
+<style lang="less">
+.loginCon{
+  position:absolute;
+  bottom:40rpx;
+  left:23rpx;
+}
+.wechatIcon{
+  width: 40rpx;
+  height:35rpx;
+  margin-bottom:-5rpx;
+}
+.loginBtn{
+  color: #fff;
+  font-size: 30rpx;
+  width:702rpx;
+  height:80rpx;
+  background:linear-gradient(90deg,rgba(112,218,157,1) 0%,rgba(50,187,148,1) 100%);
+  border-radius:40px;
+}
+.cusModal{
+  display: block;
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  background:rgba(0, 0, 0, 0.7);
+  z-index:9999;
+  transition:all 0.2s ease-in-out;
+  .tip{
+    position: relative;
+    z-index: 1000;
+  }
+}
+</style>

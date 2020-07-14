@@ -1,0 +1,495 @@
+<template>
+  <view class="box">
+    <view class="videoBox">
+      <view class="videoTitle">
+        <view class="title">
+          <text>{{title}}</text>
+        </view>
+        <view class="detailBox">
+          <view class="detail_left" wx:if="{{detailsData.askType==0}}">快速提问</view>
+          <view class="detail_left" style="color: #F48D0E; background-color: #FFEFDC;" wx:if="{{detailsData.askType==1}}">问专家</view>
+          <view class="icon_box" wx:if="{{detailsData.askType==1}}">
+            <image class="icon" src="{{apiDomain+'pigIMG/img/expert-icon.png'}}"/>
+            <text>{{expertObj.name}}</text>
+          </view>
+          <view class="detail_right">
+            <text>{{detailsData.publishDate}}</text>
+            <i-icon type="message" size="18" color="#999999"/>
+            <text>{{detailsData.replyNum?detailsData.replyNum:0}}</text>
+          </view>
+        </view>
+        <view class="describe">
+          <text>发病阶段：{{detailsData.text.stage}}</text>
+          <text>发病头数：{{detailsData.text.numbertou}}头</text>
+          <text>体温：{{detailsData.text.temperature}}℃</text>
+        </view>
+        <view class="textBox">
+          <text class="title">症状描述：</text>
+          <text>{{detailsData.text.miaoshu}}</text>
+          <video id="myVideo" wx:if="{{detailsData.videoPath}}" src="{{imgPath+detailsData.videoPath}}" controls @error="videoErrorCallback"></video>
+          <block wx:if="{{detailsData.text.ImgPath.length>0}}">
+            <image wx:for="{{detailsData.text.ImgPath}}" wx:key="*this" src="{{filePath+item}}" mode="widthFix"/>
+          </block>
+        </view>
+      </view>
+    </view>
+    <view class="kongbai"></view>
+    <view class="commentBox">
+      <view class="commentTitle">
+        <text class="i"></text>
+        <text>回帖讨论</text>
+        <text class="right_text">共{{detailsData.replyNum?detailsData.replyNum:0}}条评论</text>
+      </view>
+      <view class="commentConterBox">
+        <view wx:for="{{detailsData.replyList }}" wx:key="id" class="commentConter">
+          <view class="portrait">
+            <i-avatar src="{{item.replyerType ? filePath+item.img : item.img}}" size="default"></i-avatar>
+          </view>
+          <view class="conter">
+            <view class="author">
+              <text>{{item.nickname}}</text>
+              <text style="margin-left:10rpx;color:#F48D0E;font-size:22rpx;" wx:if="{{item.replyerType ==1}}">专家</text>
+              <text wx:if="{{item.replyerId == detailsData.authorId }}">（作者）</text>
+            </view>
+            <view class="conterText">{{item.text}}</view>
+            <view class="conterTime">
+              <text>{{item.createDate}}</text>
+               <navigator class="go" url="./class_details_reply?id={{item.id}}"><text class="huifu">回复</text></navigator>
+              <view class="icon" wx:if="{{appreciate}}" @tap="editAdopt({{item.id}})" >
+                <image src="{{item.adopt ? apiDomain+'/pigIMG/icons/tw_icon_caina_pre@2x.png' : apiDomain+'/pigIMG/icons/tw_icon_caina@2x.png'}}" />
+                <text class="{{item.adopt?'cn':''}}">采纳</text>
+              </view>
+              <view class="icon" wx:if="{{!appreciate}}" @tap="editPraise({{item.id}})" >
+                <image src="{{item.praise ? apiDomain+'/pigIMG/icons/tw_icon_dianzan_pre@2x.png' : apiDomain+'/pigIMG/icons/tw_icon_dianzan@2x.png'}}" />
+                <text class="{{item.praise?'cn':''}}">点赞</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="pinglun">
+      <input placeholder="回帖参与讨论" @input="getReplyText" value="{{replyText}}" @confirm="reply" />
+      <button class="icon-fenxiang" size="mini" open-type="share">
+        <i-icon type="share" size="17" color="#4FAF6E"/>
+        <text class="share">分享</text>
+      </button>
+    </view>
+
+    <i-toast id="toast" />
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy';
+import api from '@/api/api';
+import tip from '@/utils/tip'
+import {$Toast} from '../iview/base/index'
+import {apiDomain, requestPath} from '@/utils/wxRequest'
+import { errorMsg } from '@/utils/publicFunction'
+import {  USER_INFO  } from '@/utils/constant';
+export default class Quickask extends wepy.page {
+  config = {
+    navigationBarTitleText: '提问详情',
+    usingComponents: {
+      'i-toast': '../iview/toast/index',
+      'i-icon': '../iview/icon/index',
+      'i-avatar': '../iview/avatar/index'
+    }
+  };
+  data = {
+    imgPath: requestPath.ImgPath,
+    apiDomain: apiDomain,
+    detailsData:null,//获取到的数据
+    id : null,//文章 id
+    title:'',  //文章标题
+    expertObj:null,//存储专家的相关信息
+    memberObj:null,//存储会员相关的信息
+    replyText:'',//回复的文本
+    filePath:'', //文件路径
+    appreciate:false,   //是否是作者本人在浏览这个
+    author:null,    //作者id
+  };
+  methods = {
+    videoErrorCallback(e) {
+      console.log('视频错误信息:'+e.detail.errMsg)
+    },
+    async reply(){//回复
+      if (!this.replyText) {
+        $Toast({
+          content: '请输入内容后再回复',
+          type: 'warning'
+        })
+        return false
+      }
+      let replyData ={
+        hierarchy:1,
+        talkId:this.id,
+        text:this.replyText,
+        toReplyerId:this.detailsData.authorId
+      };
+      console.log(replyData);
+      let res = await api.replyApi({
+        method: 'POST',
+        query: replyData
+      })
+      if (res.data.status) {
+        this.replyText = ''
+        this.getData()
+        this.$apply()
+      } else {
+        errorMsg(res.data, '回复')
+      }
+    },
+    async editAdopt(id){//采纳
+      let AdoptData ={
+        talkId:this.detailsData.id,
+        oid:id
+      };
+      console.log(AdoptData);
+      let res = await api.editAdoptApi({
+        method: 'POST',
+        query: AdoptData
+      })
+      if (res.data.status) {
+        this.getData()
+        this.$apply()
+      } else {
+        errorMsg(res.data, '采纳')
+      }
+    },
+      async editPraise(id){//点赞
+      let AdoptData ={
+        type:2,
+        oid:id
+      };
+      console.log(AdoptData);
+      let res = await api.editPraiseApi({
+        method: 'POST',
+        query: AdoptData
+      })
+      if (res.data.status) {
+        this.getData()
+        this.$apply()
+      } else {
+        errorMsg(res.data, '点赞')
+      }
+    },
+    getReplyText(e){
+      this.replyText = e.detail.value
+    }
+  };
+  
+  async getData(){//获取问答详情
+    let that = this
+    let jso = await api.myQADetailsApi(this.id)
+    if (jso.data.status) {
+      that.detailsData = jso.data.data
+      console.log(that.detailsData);
+      that.detailsData.text = JSON.parse(that.detailsData.text)             //解析text
+      if(that.detailsData.text.miaoshu.length>=20){                         //判断描述的长度是否大于20
+        that.title = that.detailsData.text.miaoshu.substr(0,19)
+      }else{
+        that.title = that.detailsData.text.miaoshu
+      }
+      // if(!that.detailsData.replyNum){                                       //判断如果回复数为null 
+      //   that.detailsData.replyNum =0
+      // }
+      if(that.detailsData.authorId  == that.author){  //判断是否是发帖人本人在浏览这个帖子
+        that.appreciate = true
+      }else{
+        that.appreciate = false
+      }
+
+      if(that.detailsData.askType === 1){                                   //判断是否为指定专家进行回答
+        let expertInfo = await api.getExpertApi(that.detailsData.expertId)
+        if (expertInfo.data.status) {
+          that.expertObj = expertInfo.data.data
+          that.$apply()
+        } else {
+          tip.error(expertInfo.data.msg)
+        }
+      }
+      if(that.detailsData.replyNum >0){
+        let Idarray = []
+        for(let i=0;i<that.detailsData.replyList.length;i++){
+          Idarray.push(that.detailsData.replyList[i].replyerId)
+        }
+        let memberList = await api.memberListApi({method:"POST",query:Idarray})
+        if (memberList.data.status) {
+          that.memberObj = memberList.data.data
+          for(let i=0;i<that.detailsData.replyList.length;i++){
+            console.log(that.detailsData.replyList[i]);
+            for(let k=0;k<that.memberObj.length;k++){
+              if(that.detailsData.replyList[i].replyerId  == that.memberObj[k].id){
+                if(that.memberObj[k].type ==0){
+                  that.detailsData.replyList[i].img = that.memberObj[k].img
+                  that.detailsData.replyList[i].nickname  = that.memberObj[k].nickname 
+                }
+                if(that.memberObj[k].type ==1){
+                  that.detailsData.replyList[i].img = that.memberObj[k].photo
+                  that.detailsData.replyList[i].nickname  = that.memberObj[k].name
+                }
+              }
+            }
+          }
+          that.$apply()
+        } else {
+          tip.error(memberList.data.msg)
+        }
+      }
+    that.$apply()
+    } else {
+      tip.error(jso.data.msg)
+    }
+  }
+  onShareAppMessage(res) {
+    // if (res.from === 'button') {
+    //   // 来自页面内转发按钮
+    //   console.log(res.target)
+    // }
+    return {
+      title: this.detailsData.text.miaoshu,
+      path: `/pages/asking_for_detail?id=${this.id}`
+    }
+  }
+  onReady(res) {
+    this.videoContext = wx.createVideoContext('myVideo')
+  }
+  onLoad(e){
+    this.id = e.id  //获取url里  文章的id
+    this.filePath = requestPath.ImgPath
+    console.log(this.filePath);
+    this.author =wepy.getStorageSync('user').id
+  }
+  onShow(){
+    this.getData();
+  }
+}
+</script>
+<style lang="less">
+.replay{
+  display: inline-block;
+}
+.videoBox {
+  width: 100%;
+  video {
+    width: 100%;
+  }
+}
+.videoTitle {
+  box-sizing: border-box;
+  padding: 40rpx 30rpx 35rpx 30rpx;
+  .title {
+    font-size: 36rpx;
+    font-weight: bold;
+    color: rgba(51, 51, 51, 1);
+    line-height: 54rpx;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow:ellipsis;
+  }
+  .detailBox {
+    margin-top: 28rpx;
+    display: flex;
+    padding-bottom: 30rpx;
+    .detail_left {
+      margin-top: 10rpx;
+      height: 42rpx;
+      padding: 0rpx 15rpx;
+      background: rgba(232, 246, 232, 1);
+      border-radius: 6rpx;
+      text-align: center;
+      float: left;
+      background: rgba(232, 246, 232, 1);
+      border-radius: 6px;
+      line-height: 42rpx;
+      color: #4faf6e;
+      font-size: 22rpx;
+    }
+    .detail_right {
+      flex: 1;
+      float: left;
+      text-align: right;
+      text {
+        color: #999999;
+        font-size: 22rpx;
+        line-height: 30rpx;
+      }
+    }
+  }
+  .textBox {
+    padding: 35rpx 11rpx;
+    font-size: 28rpx;
+    color: #333333;
+    line-height: 42rpx;
+    .title {
+      font-size: 28rpx;
+      font-weight: 600;
+    }
+    text:last-child {
+      display: block;
+      padding-top: 15rpx;
+    }
+    image{
+      display: block;
+      width:100%;
+      margin-bottom: 10rpx;
+    }
+  }
+} //videoTitle
+
+.describe {
+  padding: 20rpx 24rpx;
+  background: rgba(248, 248, 248, 1);
+  border-radius: 8px;
+  text {
+    display: block;
+    font-size: 28rpx;
+    font-family: PingFang-SC-Medium;
+    font-weight: 500;
+    color: rgba(102, 102, 102, 1);
+    line-height: 56rpx;
+  }
+}
+
+.kongbai {
+  height: 16rpx;
+  background-color: #f7f4f0;
+}
+.commentBox {
+  .commentTitle {
+    height: 87rpx;
+    border-bottom: 1rpx solid #ebebeb;
+    line-height: 87rpx;
+    padding-left: 24rpx;
+    padding-right: 24rpx;
+    font-size: 30rpx;
+    color: #333333;
+    .i {
+      display: inline-block;
+      width: 5rpx;
+      height: 28rpx;
+      background-color: #4faf6e;
+      margin-right: 15rpx;
+    }
+    .right_text {
+      float: right;
+      font-size: 26rpx;
+      color: #666666;
+    }
+  }
+  .commentConterBox {
+    padding: 0 24rpx 110rpx 24rpx;
+  }
+  .commentConter {
+    padding: 34rpx 0rpx 24rpx 0rpx;
+    border-bottom: 1rpx solid #ebebeb;
+    display: flex;
+    &:last-child {
+      border-bottom: none;
+    }
+    .portrait {
+      width: 95rpx;
+      float: left;
+    }
+    .conter {
+      flex: 1;
+      .author {
+        font-size: 26rpx;
+        color: #666;
+        line-height: 42rpx;
+        i-icon {
+          float: right;
+        }
+      }
+      .conterText {
+        padding-top: 12rpx;
+        font-size: 30rpx;
+        font-weight: 500;
+        color: rgba(51, 51, 51, 1);
+        line-height: 45rpx;
+      }
+      .conterTime {
+        padding-top: 20rpx;
+        font-size: 22rpx;
+        font-weight: 400;
+        color: rgba(153, 153, 153, 1);
+        line-height: 42rpx;
+        .go{
+            display: inline-block;
+            margin-left: 35rpx;
+          .huifu {
+            display: inline-block;
+            padding: 0 17rpx;
+            background-color: #f8f8f8;
+            line-height: 34rpx;
+            height: 34rpx;
+            border-radius: 17rpx;
+          }
+        }
+        .icon {
+          float: right;
+          image {
+            width: 25rpx;
+            height: 22rpx;
+          }
+          .cn{
+            color: #F48D0E;
+          }
+        }
+      }
+    }
+  }
+}
+
+.pinglun {
+  position: fixed;
+  box-sizing: border-box;
+  bottom: 0;
+  width: 100%;
+  height: 98rpx;
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0px -1px 3px 0px rgba(0, 0, 0, 0.15);
+  padding: 16rpx 24rpx 16rpx 30rpx;
+  input {
+    box-sizing: border-box;
+    width: 554rpx;
+    height: 66rpx;
+    float: left;
+    font-size: 28rpx;
+    line-height: 66rpx;
+    padding-left: 41rpx;
+    background: rgba(241, 241, 243, 1);
+    border-radius: 32rpx;
+  }
+  .icon-fenxiang {
+    margin-left: 40rpx;
+    float: left;
+    font-size: 28rpx;
+    font-weight: 500;
+    color: rgba(79, 175, 110, 1);
+    line-height: 66rpx;
+    padding: 0;
+    background-color: transparent;
+    &::after{border: 0;}
+    .share {
+      padding-left: 13rpx;
+    }
+  }
+}
+.icon_box{
+  margin-left: 8rpx;
+  padding-top: 18rpx;
+  font-size: 22rpx;
+  color: #999;
+  .icon{
+    width: 24rpx;
+    height: 24rpx;
+    vertical-align: middle;
+    margin-right: 8rpx;
+    margin-bottom:8rpx;
+  }
+}
+</style>

@@ -1,0 +1,442 @@
+<template>
+  <view>
+    <view class="commentBox">
+      <view class="commentConter_theme">
+        <view class="portrait">
+          <i-avatar src="{{info.img}}" size="default"></i-avatar>
+        </view>
+        <view class="conter">
+          <view class="author">
+            <text>{{info.nickname}}</text>
+            <view class="praiseBox">
+              <view class="icon" wx:if="{{appreciate}}" @tap="editAdopt({{info.id}})" >
+                <image src="{{info.adopt ? apiDomain+'/pigIMG/icons/tw_icon_caina_pre@2x.png' : apiDomain+'/pigIMG/icons/tw_icon_caina@2x.png'}}" />
+                <text class="{{info.adopt?'cn':''}}">采纳</text>
+              </view>
+              <view class="icon" wx:if="{{!appreciate}}" @tap="editPraise({{info.id}})" >
+                <image src="{{info.praise ? apiDomain+'/pigIMG/icons/tw_icon_dianzan_pre@2x.png' :apiDomain+'/pigIMG/icons/gkk_icon_zan@2x.png'}}" />
+                <text class="nickname">{{info.praiseNum?info.praiseNum:''}}</text><text class="{{info.praise?'cn':''}}">点赞</text>
+              </view>
+              <!-- <i-icon type="praise"/><text>{{info.praiseNum?info.praiseNum:''}}</text> -->
+            </view>
+          </view>
+          <view class="conterText">{{info.text}}</view>
+          <view class="conterTime">
+            <text>{{info.createDate}}</text>
+            <!-- <text class="huifu">{{info.replyNum?info.replyNum:''}}回复</text> -->
+          </view>
+        </view>
+      </view>
+      <view class="commentTitle">
+        <text class="i"></text>
+        <text>全部评论</text>
+      </view>
+      <view class="commentConterBox" wx:for="{{info.replyList}}" wx:key="id">
+        <view class="commentConter">
+          <view class="portrait">
+            <i-avatar src="{{item.img}}" size="default"></i-avatar>
+          </view>
+          <view class="conter">
+            <view class="author">
+              <text>{{item.nickname}}</text>
+            <view class="praiseBox">
+              <view class="icon" wx:if="{{appreciate}}" @tap="editAdopt({{item.id}})" >
+                <image src="{{item.adopt ? apiDomain+'/pigIMG/icons/tw_icon_caina_pre@2x.png' : apiDomain+'/pigIMG/icons/tw_icon_caina@2x.png'}}" />
+                <text class="{{item.adopt?'cn':''}}">采纳</text>
+              </view>
+              <view class="icon" wx:if="{{!appreciate}}" @tap="editPraise({{item.id}})" >
+                <image src="{{item.praise ? apiDomain+'/pigIMG/icons/tw_icon_dianzan_pre@2x.png' :apiDomain+'/pigIMG/icons/gkk_icon_zan@2x.png'}}" />
+                <text class="nickname">{{item.praiseNum?item.praiseNum:''}}</text><text class="{{item.praise?'cn':''}}">点赞</text>
+              </view>
+              <!-- <i-icon type="praise"/><text class="nickname">{{item.praiseNum?item.praiseNum:''}}</text> -->
+            </view>
+            </view>
+            <view class="conterText nickname">{{item.text}}</view>
+            <view class="conterTime">
+              <text>{{item.createDate}}</text>
+              <text class="huifu" @tap="replyReply({{item.id}},{{item.nickname}},{{item.text}})">{{item.replyNum}}回复</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="pinglun">
+      <input type='text' placeholder="回帖参与讨论" focus="{{getfocus}}" @blur="inputblur" @input="getReplyText" value="{{replyText}}" @confirm="searchSubmit" />
+      <button class="icon-fenxiang" size="mini" open-type="share">
+        <i-icon type="share" size="17" color="#4FAF6E"/>
+        <text class="share">分享</text>
+      </button>
+    </view>
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy';
+import api from '@/api/api';
+import tip from '@/utils/tip'
+import {apiDomain, requestPath} from '@/utils/wxRequest'
+import { errorMsg } from '@/utils/publicFunction'
+export default class Quickask extends wepy.page {
+  config = {
+    navigationBarTitleText: '追问详情页',
+    usingComponents: {
+      'i-icon': '../iview/icon/index',
+      'i-avatar': '../iview/avatar/index'
+    }
+  };
+  data = {
+    id : null,//一级回复的 id
+    info:'null',//获取到的信息
+    getfocus:false,
+    memberObj:null,//存储会员相关的信息
+    replyText:'',//回复的文本
+    replyThrText:'',// 暂存回复三级文本
+    author:null,    //作者id
+    appreciate:false,   //是否是作者本人在浏览这个
+    apiDomain: apiDomain,
+    filePath:'', //文件路径
+  };
+
+  async reply(){//回复
+    let that = this
+    console.log(that,'aaaaa');
+    
+    let replyData ={
+      hierarchy:2,
+      parentId:parseInt(that.id),
+      talkId:that.info.talkId,
+      text:that.replyText,
+      toReplyerId:that.info.replyerId
+    };
+    console.log(replyData);
+    let res = await api.replyApi({
+      method: 'POST',
+      query: replyData
+    })
+    if (res.data.status) {
+      that.replyText = ''
+      that.getData()
+      that.$apply()
+    } else {
+      tip.error(res.data.msg)
+    }
+    console.log(res);
+    
+  }
+
+
+  methods = {
+    searchSubmit(e){//键盘完成按钮的回掉函数
+      if(this.replyText === ''){
+        return
+      }
+      this.replyText += this.replyThrText
+      
+      this.reply()
+    },
+    getReplyText(e){//获取文本输入的值
+      
+      this.replyText = e.detail.value
+    },
+    replyReply(id,name,text){//三级回复      
+      this.getfocus =true;
+      this.replyThrText = '//@'+name+' : '+text
+    },
+    inputblur(){//失去焦点触发
+      this.replyThrText=''
+    },
+        async editAdopt(id){//采纳
+      let AdoptData ={
+        talkId:this.detailsData.id,
+        oid:id
+      };
+      console.log(AdoptData);
+      let res = await api.editAdoptApi({
+        method: 'POST',
+        query: AdoptData
+      })
+      if (res.data.status) {
+        this.getData()
+        this.$apply()
+      } else {
+        errorMsg(res.data, '采纳')
+      }
+    },
+      async editPraise(id){//点赞
+      let AdoptData ={
+        type:2,
+        oid:id
+      };
+      console.log(AdoptData);
+      let res = await api.editPraiseApi({
+        method: 'POST',
+        query: AdoptData
+      })
+      if (res.data.status) {
+        this.getData()
+        this.$apply()
+      } else {
+        errorMsg(res.data, '点赞')
+      }
+    },
+  };
+
+  async getData(){//获取详情
+    let that = this
+    let jso = await api.twoReplylistApi({query:{oid: that.id}})
+    if (jso.data.status) {
+      that.info = jso.data.data
+            // if(that.info.authorId  == that.author){  //判断是否是发帖人本人在浏览这个帖子
+            //   that.appreciate = true
+            // }else{
+            //   that.appreciate = false
+            // }
+          if(that.info.replyNum >0){
+            let Idarray = []
+            Idarray.push(that.info.toReplyerId)
+            for(let i=0;i<that.info.replyList.length;i++){
+              Idarray.push(that.info.replyList[i].replyerId)
+            }
+            let memberList = await api.memberListApi({method:"POST",query:Idarray})
+              if (memberList.data.status) {
+                that.memberObj = memberList.data.data
+                for(let i=0;i<that.info.replyList.length;i++){
+                  console.log(that.info.replyList[i]);
+                  for(let k=0;k<that.memberObj.length;k++){
+                    if(that.info.toReplyerId==that.memberObj[k].id){//获取发布当前帖子会员的信息
+                      if(that.memberObj[k].type ==0){
+                        that.info.img = that.memberObj[k].img
+                        that.info.nickname  = that.memberObj[k].nickname 
+                      }
+                      if(that.memberObj[k].type ==1){
+                        that.info.img = that.memberObj[k].photo
+                        that.info.nickname  = that.memberObj[k].name
+                      }
+                    }
+                    if(that.info.replyList[i].replyerId  == that.memberObj[k].id){
+                      if(that.memberObj[k].type ==0){
+                        that.info.replyList[i].img = that.memberObj[k].img
+                        that.info.replyList[i].nickname  = that.memberObj[k].nickname 
+                      }
+                      if(that.memberObj[k].type ==1){
+                        that.info.replyList[i].img = that.memberObj[k].photo
+                        that.info.replyList[i].nickname  = that.memberObj[k].name
+                      }
+                    }
+                  }
+                }
+                that.$apply()
+              } else {
+                tip.error(memberList.data.msg)
+              }
+          }
+      that.$apply()
+    } else {
+      tip.error(jso.data.msg)
+    }
+  }
+  onShareAppMessage(res) {
+    // if (res.from === 'button') {
+    //   // 来自页面内转发按钮
+    //   console.log(res.target)
+    // }
+    return {
+      title: this.detailsData.text.miaoshu,
+      path: `/pages/asking_for_detail?id=${this.id}`
+    }
+  }
+  onLoad(e){
+    this.id = e.id  //获取url里 的id
+    this.filePath = requestPath.ImgPath
+    this.getData()
+    this.author =wepy.getStorageSync('user').id
+  }
+}
+</script>
+
+<style lang="less">
+.nickname{
+  color:red;
+}
+.commentBox {
+  padding-left: 24rpx;
+  padding-right: 24rpx;
+  padding-bottom: 110rpx;
+  .commentTitle {
+    height: 87rpx;
+    line-height: 87rpx;
+    font-size: 30rpx;
+    color: #333333;
+    .i {
+      display: inline-block;
+      width: 5rpx;
+      height: 28rpx;
+      background-color: #4faf6e;
+      margin-right: 15rpx;
+    }
+  }
+
+  .commentConter {
+    padding: 34rpx 0rpx 24rpx 0rpx;
+    border-bottom: 1rpx solid #ebebeb;
+    display: flex;
+    &:last-child {
+      border-bottom: none;
+    }
+    .portrait {
+      width: 95rpx;
+      float: left;
+    }
+    .conter {
+      flex: 1;
+      .author {
+        font-size: 26rpx;
+        color: #666;
+        line-height: 42rpx;
+        .praiseBox{
+          // width: 100rpx;
+          float: right;
+          .icon {
+            float: right;
+            image {
+              width: 25rpx;
+              height: 22rpx;
+            }
+            .cn{
+              color: #F48D0E;
+            }
+          }
+        }
+        i-icon {
+          float:left;
+          padding-right: 8rpx;
+        }
+      }
+      .conterText {
+        padding-top: 12rpx;
+        font-size: 30rpx;
+        font-weight: 500;
+        color: rgba(51, 51, 51, 1);
+        line-height: 45rpx;
+      }
+      .conterTime {
+        padding-top: 20rpx;
+        font-size: 22rpx;
+        font-weight: 400;
+        color: rgba(153, 153, 153, 1);
+        line-height: 42rpx;
+        .huifu {
+          display: inline-block;
+          padding: 0 17rpx;
+          background-color: #f8f8f8;
+          line-height: 34rpx;
+          height: 34rpx;
+          border-radius: 17rpx;
+          margin-left: 35rpx;
+        }
+      }
+    }
+  }
+}
+
+.commentConter_theme {
+  padding: 34rpx 0rpx 24rpx 0rpx;
+  border-bottom: 1rpx solid #ebebeb;
+  display: flex;
+  &:last-child {
+    border-bottom: none;
+  }
+  .portrait {
+    width: 95rpx;
+    float: left;
+  }
+  .conter {
+    flex: 1;
+    .author {
+      font-size: 26rpx;
+      color: #666;
+      line-height: 42rpx;
+        .praiseBox{
+          // width: 100rpx;
+          float: right;
+          .icon {
+            float: right;
+            image {
+              width: 25rpx;
+              height: 22rpx;
+            }
+            .cn{
+              color: #F48D0E;
+            }
+          }
+        }
+      i-icon {
+        float: left;
+        padding-right: 8rpx;
+      }
+    }
+    .conterText {
+      padding-top: 12rpx;
+      font-size: 30rpx;
+      font-weight: 500;
+      color: rgba(51, 51, 51, 1);
+      line-height: 45rpx;
+    }
+    .conterTime {
+      padding-top: 20rpx;
+      font-size: 22rpx;
+      font-weight: 400;
+      color: rgba(153, 153, 153, 1);
+      line-height: 42rpx;
+      .huifu {
+        display: inline-block;
+        padding: 0 17rpx;
+        background-color: #f8f8f8;
+        line-height: 34rpx;
+        height: 34rpx;
+        border-radius: 17rpx;
+        margin-left: 35rpx;
+      }
+    }
+  }
+}
+
+.pinglun {
+  position: fixed;
+  box-sizing: border-box;
+  bottom: 0;
+  width: 100%;
+  height: 98rpx;
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0px -1px 3px 0px rgba(0, 0, 0, 0.15);
+  padding: 16rpx 24rpx 16rpx 30rpx;
+  input {
+    box-sizing: border-box;
+    width: 554rpx;
+    height: 66rpx;
+    float: left;
+    font-size: 28rpx;
+    line-height: 66rpx;
+    padding-left: 41rpx;
+    background: rgba(241, 241, 243, 1);
+    border-radius: 32rpx;
+  }
+  .icon-fenxiang {
+    margin-left: 40rpx;
+    float: left;
+    font-size: 28rpx;
+    font-weight: 500;
+    color: rgba(79, 175, 110, 1);
+    line-height: 66rpx;
+    padding: 0;
+    background-color: transparent;
+    &::after{border: 0;}
+    .share {
+      padding-left: 13rpx;
+    }
+  }
+}
+</style>
+
+

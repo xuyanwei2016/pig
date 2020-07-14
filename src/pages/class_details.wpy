@@ -1,0 +1,284 @@
+<template>
+  <view class="box">
+    <view class="videoBox">
+      <video
+        src="{{}}"
+        controls="true"
+        autoplay="true"
+        loop="true"
+        objectFit="contain"
+        @pause="pause"
+        @waiting="waiting"
+        @error="error"
+      ></video>
+      <view class="videoTitle">
+        <view class="title">
+          <text>郑老师：消费继续恶化，受非洲猪瘟影响加大，近期下跌风险再次加大</text>
+        </view>
+        <view class="detailBox">
+          <view class="detail_left">
+            <text>猪业资讯</text>
+          </view>
+          <view class="detail_right">
+            <text>2018-9-2 16:12</text>
+            <i-icon type="message" size="18" color="#999999"/>
+            <text>5</text>
+          </view>
+        </view>
+        <view class="textBox">
+          <text>怀疑仔副猪伤寒，猪瘟，肌注氟苯尼考，恩诺沙星+头孢。一天一次连用三天。饮水多维素，补液盐，新霉素连用一周。控食减料，拌料粘杆菌素，益生素，小苏打。三天后效果不好，肌注大剂量的猪瘟疫苗。</text>
+          <text>怀疑鼻炎，肌注氟苯尼考，磺胺六甲+地塞米松，卡那霉素喷鼻。拌料磺胺二甲粉，泰乐菌素，荆防败毒散连用一周。</text>
+        </view>
+      </view>
+    </view>
+    <view class="kongbai"></view>
+    <view class="commentBox">
+      <view class="commentTitle">
+        <text class="i"></text>
+        <text>回帖讨论</text>
+        <text class="right_text">共5条评论</text>
+      </view>
+      <view class="commentConterBox">
+        <view class="commentConter">
+          <view class="portrait">
+            <i-avatar src="https://i.loli.net/2017/08/21/599a521472424.jpg" size="default"></i-avatar>
+          </view>
+          <view class="conter">
+            <view class="author">
+              <text>麓麓m</text>
+              <i-icon type="praise"/>
+            </view>
+            <view class="conterText">按国家的政策走就得了，冷链运输会增加很多的费用，最终会是我们养猪的人买单！</view>
+            <view class="conterTime">
+              <text>18-09-30 16:40</text>
+              <text class="huifu">5回复</text>
+            </view>
+          </view>
+        </view>
+        <view class="commentConter">
+          <view class="portrait">
+            <i-avatar src="https://i.loli.net/2017/08/21/599a521472424.jpg" size="default"></i-avatar>
+          </view>
+          <view class="conter">
+            <view class="author">
+              <text>麓麓m</text>
+              <i-icon type="praise"/>
+            </view>
+            <view class="conterText">我们要根据自己的猪和本地区的行情，理智去分析，不能一涨就压，一跌就抛，这样真的一直都卖不好猪，一定要合理分析。</view>
+            <view class="conterTime">
+              <text>18-09-30 16:40</text>
+              <text class="huifu">12回复</text>
+            </view>
+          </view>
+        </view>
+        <view class="commentConter">
+          <view class="portrait">
+            <i-avatar src="https://i.loli.net/2017/08/21/599a521472424.jpg" size="default"></i-avatar>
+          </view>
+          <view class="conter">
+            <view class="author">
+              <text>麓麓m</text>
+              <i-icon type="praise"/>
+            </view>
+            <view class="conterText">按国家的政策走就得了，冷链运输会增加很多的费用，最终会是我们养猪的人买单！</view>
+            <view class="conterTime">
+              <text>18-09-30 16:40</text>
+              <text class="huifu">5回复</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="pinglun">
+      <input placeholder="回帖参与讨论"/>
+      <view class="icon-fenxiang">
+        <i-icon type="share" size="17" color="#4FAF6E"/>
+        <text>分享</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+
+<script>
+import wepy from 'wepy';
+export default class Quickask extends wepy.page {
+  config = {
+    navigationBarTitleText: '公开课详情页',
+    usingComponents: {
+      'i-icon': '../iview/icon/index',
+      'i-avatar': '../iview/avatar/index'
+    }
+  };
+  data = {};
+  methods = {};
+}
+</script>
+
+<style lang="less">
+.videoBox {
+  width: 100%;
+  video {
+    width: 100%;
+  }
+}
+.videoTitle {
+  box-sizing: border-box;
+  padding: 40rpx 30rpx 35rpx 30rpx;
+  .title {
+    font-size: 36rpx;
+    font-weight: bold;
+    color: rgba(51, 51, 51, 1);
+    line-height: 54rpx;
+  }
+  .detailBox {
+    margin-top: 28rpx;
+    display: flex;
+    padding-bottom: 30rpx;
+    border-bottom: 1px solid #ebebeb;
+    .detail_left {
+      width: 160rpx;
+      float: left;
+      text {
+        line-height: 34rpx;
+        color: #aaaaaa;
+        font-size: 24rpx;
+      }
+    }
+    .detail_right {
+      flex: 1;
+      float: left;
+      text-align: right;
+      text {
+        color: #999999;
+        font-size: 22rpx;
+        line-height: 30rpx;
+      }
+      i-icon {
+        padding-left: 25rpx;
+        padding-right: 10rpx;
+      }
+    }
+  }
+  .textBox {
+    padding: 35rpx 11rpx;
+    font-size: 28rpx;
+    color: #333333;
+    line-height: 42rpx;
+    text:last-child {
+      display: block;
+      padding-top: 50rpx;
+    }
+  }
+} //videoTitle
+.kongbai {
+  height: 16rpx;
+  background-color: #f7f4f0;
+}
+.commentBox {
+  .commentTitle {
+    height: 87rpx;
+    border-bottom: 1rpx solid #ebebeb;
+    line-height: 87rpx;
+    padding-left: 24rpx;
+    padding-right: 24rpx;
+    font-size: 30rpx;
+    color: #333333;
+    .i {
+      display: inline-block;
+      width: 5rpx;
+      height: 28rpx;
+      background-color: #4faf6e;
+      margin-right: 15rpx;
+    }
+    .right_text {
+      float: right;
+      font-size: 26rpx;
+      color: #666666;
+    }
+  }
+  .commentConterBox {
+    padding: 0 24rpx 110rpx 24rpx;
+  }
+  .commentConter {
+    padding: 34rpx 0rpx 24rpx 0rpx;
+    border-bottom: 1rpx solid #ebebeb;
+    display: flex;
+    &:last-child {
+      border-bottom: none;
+    }
+    .portrait {
+      width: 95rpx;
+      float: left;
+    }
+    .conter {
+      flex: 1;
+      .author {
+        font-size: 26rpx;
+        color: #666;
+        line-height: 42rpx;
+        i-icon {
+          float: right;
+        }
+      }
+      .conterText {
+        padding-top: 12rpx;
+        font-size: 30rpx;
+        font-weight: 500;
+        color: rgba(51, 51, 51, 1);
+        line-height: 45rpx;
+      }
+      .conterTime {
+        padding-top: 20rpx;
+        font-size: 22rpx;
+        font-weight: 400;
+        color: rgba(153, 153, 153, 1);
+        line-height: 42rpx;
+        .huifu {
+          display: inline-block;
+          padding: 0 17rpx;
+          background-color: #f8f8f8;
+          line-height: 34rpx;
+          height: 34rpx;
+          border-radius: 17rpx;
+          margin-left: 35rpx;
+        }
+      }
+    }
+  }
+}
+
+.pinglun {
+  position: fixed;
+  box-sizing: border-box;
+  bottom: 0;
+  width: 100%;
+  height: 98rpx;
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0px -1px 3px 0px rgba(0, 0, 0, 0.15);
+  padding: 16rpx 24rpx 16rpx 30rpx;
+  input {
+    box-sizing: border-box;
+    width: 554rpx;
+    height: 66rpx;
+    float: left;
+    font-size: 28rpx;
+    line-height: 66rpx;
+    padding-left: 41rpx;
+    background: rgba(241, 241, 243, 1);
+    border-radius: 32rpx;
+  }
+  .icon-fenxiang {
+    margin-left: 40rpx;
+    float: left;
+    font-size: 28rpx;
+    font-weight: 500;
+    color: rgba(79, 175, 110, 1);
+    line-height: 66rpx;
+    text {
+      padding-left: 13rpx;
+    }
+  }
+}
+</style>

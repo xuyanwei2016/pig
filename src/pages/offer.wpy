@@ -1,0 +1,493 @@
+<template>
+  <view class="container">
+    <view class="sign-week">
+      <view class="weekday">
+        <text>日</text><text>一</text><text>二</text><text>三</text><text>四</text><text>五</text><text>六</text>
+      </view>
+      <view class="sign-date">
+        <view class="week-date {{today===item.date ? 'today' : ''}} {{item.sign ? 'signed' : ''}}" wx:for="{{weekday}}" wx:key="date">{{item.date}}</view>
+      </view>
+    </view>
+    <view class="reward">
+      <image class="reward-icon" src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/bj_icon_rili@2x.png"/>
+      <view class="reward-detail">
+        <text class="reward-num">您已累计报价{{offerDays.thisMaxDay?offerDays.thisMaxDay:'0'}}天</text>
+        <text>连续一周报价可换礼品</text>
+      </view>
+      <view class="reward-btn" @tap="handleModal">奖励信息</view>
+    </view>
+    <i-modal i-class="offer-modal" title="奖励信息" visible="{{ visible }}" @click="handleSubmit" actions="{{actions}}">
+      <view class="infos">
+        <input placeholder="请输入联系人姓名" name="name" @input="nameInput"/>
+        <input placeholder="请输入电话" name="tel" @input="telInput"/>
+        <input placeholder="请输入邮寄地址" name="address" @input="addressInput"/>
+      </view>
+      <view class="tip">已认证用户连续报价一周可获赠杂志。请填写邮寄信息，此部分信息仅作为邮寄用途，不公开展示。</view>      
+    </i-modal>
+    <form @submit="formSubmit">
+      <view class="inputBoxs">
+        <view class="inputBox">
+          <text>地区</text>
+          <picker class="city" mode="region" @change="bindRegionChange" value="{{[form.province, form.city, form.county]}}" name="district">
+            <view class="picker">
+              <block wx:if="{{!form.province}}">请选择</block>
+              {{form.province}}{{form.city}}{{form.county}}
+            </view>
+          </picker>
+        </view>
+        <view class="inputBox">
+          <text>生猪</text>
+          <input type="digit" class="jiage" placeholder="元/斤" name="pigPrice"/>
+          <!-- <text class="danjia" wx:if="{{form.pigPrice}}">元/斤</text> -->
+        </view>
+        <view class="inputBox">
+          <text>仔猪</text>
+          <input type="digit" class="jiage" placeholder="元/斤" name="pigletPrice"/>
+          <!-- <text wx:if="{{form.pigletPrice}}" class="danjia">元/斤</text> -->
+        </view>
+      </view>
+      <view class="inputBoxs">
+        <view class="inputBox">
+          <text>价格来源</text>
+          <view class="section">
+            <picker @change="bindPickerChange" value="{{index}}" range="{{sources}}" name="source">
+              <view class="picker">{{ index ? sources[index] : '请选择'}}</view>
+            </picker>
+          </view>
+        </view>
+        <view class="inputBox">
+          <text>单位名称</text>
+          <input type="text" name="company" value="{{form.company}}"/>
+        </view>
+      </view>
+      <view class="tishi">
+        <text class="wxts">温馨提示：</text>
+        <text>生猪外三元请报110kg价格；仔猪请报15kg价格</text>
+      </view>
+      <button class="submit-btn" formType="submit" loading="{{offerLoading}}" disabled="{{offerLoading}}">确定报价</button>
+    </form>
+    
+    <!-- <i-button @click="offerSubmit" type="success" shape="circle" loading="{{offerLoading}}">确定报价</i-button> -->
+    <i-toast id="toast" />
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import api from '@/api/api'
+import tip from '@/utils/tip'
+import {parseTime} from '@/utils/index'
+import {getCurrentTime} from '@/utils/util'
+import WxValidate from '@/utils/WxValidate'
+import {$Toast} from '../iview/base/index'
+import {errorMsg} from '@/utils/publicFunction'
+import { regions } from '@/utils/region'
+
+export default class Offer extends wepy.page {
+  config = {
+    navigationBarTitleText: '我要报价',
+    navigationBarBackgroundColor: '#4DAC6C',
+    navigationBarTextStyle: 'white',
+    usingComponents: {
+      'i-toast': '../iview/toast/index',
+      'i-modal': '../iview/modal/index',
+      'i-button': '../iview/button/index'
+    }
+  }
+  data = {
+    visible: false,
+    index: null,
+    sources: ['猪场', '经纪人', '收猪人', '屠宰场'],
+    actions: [{
+      name: '确定',
+      color: '#4FAF6E',
+      loading: false
+    }],
+    offerLoading: false,
+    form: {
+      region: '',
+      province: '北京市',
+      city: '北京市',
+      county: '海淀区',
+      pigPrice: null,
+      pigletPrice: null,
+      company: '',
+      source: ''
+    },
+    today: getCurrentTime().substring(4,6)+'.'+getCurrentTime().substring(6,8),
+    weekTime: [],
+    weekday: [],
+    offerDays: {},
+    rewardForm: {
+      name: null,
+      tel: null,
+      address: null
+    },
+    customItem: '全部'
+  }
+  methods = {
+    /* async offerSubmit() {
+      let that = this
+      this.offerLoading = true
+      // console.log(this.form);
+      let res = await api.addPrice({
+        method: 'POST',
+        query: this.form
+      })
+      if (res.data.status) {
+        // console.log(res.data);
+        tip.success('报价成功')
+        that.offerLoading = false
+        that.$apply()
+      } else {
+        errorMsg(res.data, '报价')
+      }
+    }, */
+    async formSubmit(e) {
+      // 传入表单数据，调用验证方法
+      if (!this.WxValidate.checkForm(e.detail.value)) {
+        const error = this.WxValidate.errorList[0]
+        $Toast({
+          content: error.msg,
+          type: 'warning'
+        })
+        return false
+      }
+      let {district, source, ...restParam} = e.detail.value
+      if (district[0] === '台湾省' || district[0] === '香港特别行政区' || district[0] === '澳门特别行政区') {
+        $Toast({
+          content: '暂不支持此地区报价',
+          type: 'warning'
+        })
+        return false
+      }
+      let [province, city, county] = district
+      let region = ''
+      for (const key in regions) {
+        if (regions.hasOwnProperty(key)) {
+          const provinceArr = regions[key];
+          provinceArr.some(el => el===province) ? region = key : true
+        }
+      }
+      let formData = { source: this.sources[source], region, province, city, county, ...restParam }
+      console.log(formData);
+      
+      let that = this
+      this.offerLoading = true
+      let res = await api.addPrice({
+        method: 'POST',
+        query: formData
+      })
+      if (res.data.status) {
+        // $Toast({
+        //   content: '报价成功，感谢你的参与！',
+        //   type: 'success'
+        // })
+        tip.success('报价成功')
+        that.offerLoading = false
+        that.$apply()
+        wepy.navigateBack({delta:1})
+      } else {
+        errorMsg(res.data, '报价')
+      }
+    },
+    nameInput (e) {
+      this.rewardForm.name = e.detail.value
+    },
+    telInput (e) {
+      this.rewardForm.tel = e.detail.value
+    },
+    addressInput (e) {
+      this.rewardForm.address = e.detail.value
+    },
+    bindRegionChange (e) {
+      [this.form.province, this.form.city, this.form.county] = e.detail.value
+    },
+    //普通选择器：
+    bindPickerChange (e) {
+      this.index = e.detail.value
+      this.form.source = this.sources[this.index]
+    },
+    handleModal () {
+      this.visible = true
+    },
+    handleSubmit ({detail}) {
+      // this.actions[0].loading = true
+      console.log(this.rewardForm);
+      
+      this.visible = false
+    }
+  }
+  initValidate() {
+    // 验证字段的规则
+    const rules = {
+      district: {
+        required: true
+      },
+      // assistance: {
+      //   required: true,
+      //   assistance: true
+      // },
+      pigPrice: {
+        required: true,
+        pigRange: true,
+        price: true
+      },
+      pigletPrice: {
+        required: true,
+        pigletRange: true,
+        price: true
+      },
+      source: {
+        required: true
+      },
+      company: {
+        required: true
+      }
+    }
+
+    // 验证字段的提示信息，若不传则调用默认的信息
+    const messages = {
+      district: {
+        required: '请选择地区'
+      },
+      pigPrice: {
+        required: '请填写生猪价格',
+        pigRange: '生猪价格范围为5-12元/斤',
+        price: '最多一位小数'
+      },
+      pigletPrice: {
+        required: '请填写仔猪价格',
+        pigletRange: '仔猪价格范围为12-23元/斤',
+        price: '最多一位小数'
+      },
+      source: {
+        required: '请选择来源'
+      },
+      company: {
+        required: '请填写单位名称'
+      }
+    }
+
+    // 创建实例对象
+    this.WxValidate = new WxValidate(rules, messages)
+
+    // 自定义验证规则
+    this.WxValidate.addMethod('price', (value, param) => {
+      const regPrice = /^(([0]\.\d)|([1-9][0-9]*(\.\d)*))$/
+      console.log(regPrice.test(value));
+      return regPrice.test(value)
+      // return this.WxValidate.optional(value) || (value.length >= 1 && value.length <= 2)
+    })
+    this.WxValidate.addMethod('pigletRange', (value, param) => value>=12 && value<=23)
+    this.WxValidate.addMethod('pigRange', (value, param) => value>=5 && value<=12)
+  }
+  async getWeek() {
+    let date = new Date()
+    let day = date.getDay()
+    let time = date.getTime()
+    for (let i = -day; i < 7-day; i++) {
+      // this.weekTime.push(time+i*1000*60*60*24)
+      let formatDate = parseTime(new Date(time+i*1000*60*60*24))
+      this.weekday.push({date:formatDate.substring(5,7)+'.'+formatDate.substring(8,10)})
+    }
+    let res = await api.getOfferDays()
+    if (res.data.status) {
+      this.offerDays = res.data.data
+      let {province, city, county, company} = this.offerDays
+      this.form = {province, city, county, company}
+      this.index = this.sources.indexOf(this.offerDays.source)
+      this.weekTime = res.data.data.date.map(el => el.substring(5,7)+'.'+el.substring(8,10))
+      this.weekday.forEach(el => {
+        this.weekTime.indexOf(el.date)>=0 ? el.sign = true : el.sign = false
+      })
+      console.log(this.index, this.weekday, this.form);
+    } else {
+      errorMsg(res.data, '查询用户报价详情')
+    }
+  }
+  onLoad() {
+    this.initValidate()
+    this.getWeek()
+    this.form.province = wepy.getStorageSync('province')
+    this.form.city = wepy.getStorageSync('city')
+    this.form.county = wepy.getStorageSync('county')
+    // console.log(this.WxValidate)
+  }
+}
+</script>
+
+<style lang="less">
+page{
+  background-color: #F8F8F8;
+}
+.sign-week{
+  background-color: #4DAC6C;
+  box-shadow: 0 0 30rpx rgba(10, 107, 42, .4);
+  .weekday{
+    display: flex;
+    height: 84rpx;
+    padding: 32rpx 24rpx 12rpx;
+    color: #fff;
+    font-size: 24rpx;
+    box-sizing: border-box;
+    border-bottom: 1rpx solid rgba(255, 255, 255, .2);
+    text{
+      flex: 1;
+      text-align: center;
+    }
+  }
+  .sign-date{
+    display: flex;
+    justify-content: space-around;
+    height: 36rpx;
+    padding: 28rpx 24rpx 46rpx;
+    font-size: 24rpx;
+    color: rgba(255, 255, 255, .6);
+    .week-date{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 80rpx;
+      height: 36rpx;
+      border-radius: 18rpx;
+      &.signed{
+        color: #fff;
+        background-color: rgba(255, 255, 255, .2);
+      }
+      &.today{color: #fff;}
+    }
+  }
+}
+.reward{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 198rpx;
+  margin: 0 24rpx;
+  padding: 46rpx 24rpx 70rpx 30rpx;
+  // background-color: #fff;
+  background-size: cover;
+  // background-position: center;
+  // background-origin: content-box;
+  // box-shadow: 0 0 20rpx rgba(0, 0, 0, .08);
+  box-sizing: border-box;
+  &-icon{
+    width: 82rpx;
+    height: 82rpx
+  }
+  &-detail{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 334rpx;
+    height: 82rpx;
+    color: #999;
+    font-size: 24rpx;
+  }
+  &-num{
+    color: #333;
+    font-size: 30rpx;
+  }
+  &-btn{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 184rpx;
+    height: 64rpx;
+    color: #F48D0E;
+    font-size: 26rpx;
+    border: 1rpx solid #F48D0E;
+    border-radius: 32rpx;
+    text-align: center;
+    box-sizing: border-box;
+  }
+}
+.offer-modal{
+  .tip{
+    padding: 0 40rpx 30rpx;
+    color: #666;
+    font-size: 24rpx;
+  }
+  .infos{
+    margin-bottom: 40rpx;
+  }
+  input{
+    // width: 560rpx;
+    height: 84rpx;
+    margin: 0 34rpx;
+    // color: #ADADAD;
+    font-size: 28rpx;
+    border-bottom: 1rpx solid #E4E4E4;
+    text-align: center;
+  }
+  
+}
+.inputBoxs {
+  margin-top: 20rpx;
+}
+.inputBox {
+  height: 100rpx;
+  background-color: #fff;
+  padding: 0 24rpx;
+  line-height: 100rpx;
+  &:not(:last-of-type){border-bottom: 1px solid rgba(235, 235, 235, 1);}
+  display: flex;
+  text {
+    width: 180rpx;
+    float: left;
+    font-size: 30rpx;
+  }
+  input {
+    flex: 1;
+    float: left;
+    height: 100rpx;
+    color: #666;
+    line-height: 100rpx;
+    // padding-left: 20px;
+    text-align: right;
+    font-size: 28rpx;
+  }
+  .jiage{
+    color: #4FAF6F;
+    
+  }
+  .danjia{
+    width: 80rpx;
+    text-align: right;
+    float: right;
+    font-size:28rpx;
+    font-weight:500;
+    color:rgba(153,153,153,1);
+  }
+}
+
+
+.tishi {
+  padding: 35rpx 25rpx 15rpx 25rpx;
+  font-size: 24rpx;
+  color: #999999;
+  .wxts {
+    color: #f48d0e;
+  }
+}
+.section {
+  flex: 1;
+  font-size: 30rpx;
+  picker {
+    float: right;
+    .picker {
+      font-size: 28rpx;
+      color: #666666;
+    }
+  }
+}
+.city{
+  flex:1;
+  text-align: right;
+  .picker{
+    font-size: 28rpx;
+    color: #666666;
+  }
+}
+</style>

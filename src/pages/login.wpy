@@ -1,0 +1,77 @@
+<template>
+  <view>
+    <button wx:if="{{canIUse}}" open-type="getUserInfo" bindgetuserinfo="bindGetUserInfo">授权登录</button>
+    <view wx:else>请升级微信版本</view>
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy';
+import {
+  SYSTEM_INFO,
+  USER_SPECICAL_INFO,
+  USER_INFO
+} from '@/utils/constant';
+
+import api from '@/api/api';
+
+  export default class My extends wepy.page {
+    config = {
+      navigationBarTitleText: '登录',
+      navigationBarBackgroundColor: '#3dbe9f',
+      navigationBarTextStyle: 'white',
+      "usingComponents": {
+        "i-avatar": "../iview/avatar/index",
+        "i-row": "../iview/row/index",
+        "i-col": "../iview/col/index",
+        "i-cell-group": "../iview/cell-group/index",
+        "i-cell": "../iview/cell/index",
+        "i-icon": "../iview/icon/index"
+      }
+    }
+    data =  {
+      canIUse: wx.canIUse('button.open-type.getUserInfo'),
+    }
+    methods = {
+      async bindGetUserInfo (e) {
+        if (e.detail.errMsg == 'getUserInfo:ok') {
+          let res = await wepy.login();
+          if (res.code) {
+            wepy.setStorageSync(USER_INFO, e.detail.userInfo);
+            let systemInfo = wepy.getSystemInfoSync();
+            wepy.setStorageSync(SYSTEM_INFO, systemInfo);
+
+            let rlt = await api.wxJsCode2Session({
+                query: {
+                    code: res.code,
+                    userInfo: e.detail.userInfo
+                }
+            })
+
+            if (rlt.data) {
+              let data = rlt.data;
+              console.log(data);
+              wepy.setStorageSync('Y-Token',data.data)
+            } else {
+              let res = await wepy.showModal({
+                title: '用户信息有误',
+                content: '授权失败'
+              })
+              if (res.confirm) {
+                wepy.switchTab({
+                  url: '/pages/home'
+                })
+              }
+            }
+
+          }
+        }
+      }
+    }
+    onLoad(){
+    }
+  }
+</script>
+
+<style lang="less">
+</style>

@@ -1,0 +1,335 @@
+<template>
+  <view>
+    <image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/img/personal_top.jpg" class="personal_top"/>
+      <!-- 如果只是展示用户头像昵称，可以使用 <open-data /> 组件 -->
+    <view class="info">
+      <view class="view-content">
+        <view class="avatar">
+          <i-avatar src="{{avatarUrl}}" size="large"></i-avatar>
+          
+        </view>
+        <text class="name">{{username}}</text>    
+
+        <view  class="des" wx:if="{{this.offerQualified && !this.expertQualified}}">
+          <image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/user_icon_baojiayonghu@2x.png" class="user_icon" />
+          <text>
+            报价用户
+          </text>
+        </view>
+
+        <view class="des"  wx:if="{{this.expertQualified}}">
+          <image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/user_icon_baojiayonghu@2x.png" class="user_icon" />
+          <text>
+            专家
+          </text>
+        </view>
+
+                  
+          
+      </view>
+    </view>
+    <i-row class="statistic">
+      <i-col span="4" offset="2" i-class="col-class stat-view">
+        <text class="count">{{memberData.questionNum}}</text>
+        <text class="countNum">提问数</text>
+      </i-col>
+      <i-col span="4" i-class="col-class stat-view">
+        <text class="count">{{staData.hfNum}}</text>
+        <text class="countNum">回答数</text>
+      </i-col>
+      <i-col span="4" i-class="col-class stat-view">
+        <text class="count">{{staData.dzNum}}</text>
+        <text class="countNum">获赞数</text>
+      </i-col>
+      <i-col span="4" i-class="col-class stat-view">
+        <text class="count">{{staData.cnNum}}</text>
+        <text class="countNum">获采纳</text>
+      </i-col>
+      <i-col span="4" i-class="col-class">
+        <text class="count">{{memberData.count}}</text>
+        <text class="countNum">报价数</text>
+      </i-col>
+    </i-row>
+    <view class="divider top-divider"></view>
+
+    <navigator url="my_question" open-type="navigate">
+      <view class="line-cell">
+        <image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/user_icon_tiwen@2x.png" />
+        <view class="c-cell">
+          <text>我的提问</text>
+          <i-icon type="enter" class="right"/>
+        </view>
+      </view>
+    </navigator>
+
+
+    <navigator url="my_answer">
+      <view class="line-cell">
+        <image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/user_icon_huida@2x.png" />
+        <view class="c-cell">
+          <text>我的回答</text>
+          <i-icon type="enter" class="right"/>
+        </view>
+      </view>
+    </navigator>
+
+    <navigator url="my_offer">
+      <view class="line-cell">
+        <image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/user_icon_baojia@2x.png" />
+        <view class="c-cell">
+          <text>我的报价</text>
+          <i-icon type="enter" class="right"/>
+        </view>
+      </view>
+    </navigator>
+
+    <navigator url="my_post">
+      <view class="line-cell">
+        <image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/user_icon_tiezi@2x.png" />
+        <view class="c-cell">
+          <text>我的帖子</text>
+          <i-icon type="enter" class="right"/>
+        </view>
+      </view>
+    </navigator>
+
+    <view class="divider"></view>
+
+    <navigator url="expert_certification">
+      <view class="line-cell line-cell-noborder">
+        <image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/user_icon_tiwen@2x.png" />
+        <view class="c-cell">
+          <text>成为专家</text>
+          <i-icon type="enter" class="right"/>
+        </view>
+      </view>
+    </navigator>
+    
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy';
+import api from '@/api/api';
+import {
+  SYSTEM_INFO,
+  USER_SPECICAL_INFO,
+  USER_INFO
+} from '@/utils/constant';
+
+  export default class My extends wepy.page {
+    config = {
+      navigationBarTitleText: '我的',
+      navigationBarBackgroundColor: '#3dbe9f',
+      navigationBarTextStyle: 'white',
+      "usingComponents": {
+        "i-avatar": "../iview/avatar/index",
+        "i-row": "../iview/row/index",
+        "i-col": "../iview/col/index",
+        "i-cell-group": "../iview/cell-group/index",
+        "i-cell": "../iview/cell/index",
+        "i-icon": "../iview/icon/index",
+        "i-modal": "../iview/modal/index"
+      }
+    }
+    methods = {
+      async bindGetUserInfo (e) {
+        if (e.detail.errMsg == 'getUserInfo:ok') {
+          let res = await wepy.login();
+          if (res.code) {
+            wepy.setStorageSync(USER_INFO, e.detail.userInfo);
+            let systemInfo = wepy.getSystemInfoSync();
+            wepy.setStorageSync(SYSTEM_INFO, systemInfo);
+
+            let rlt = await api.wxJsCode2Session({
+                query: {
+                    code: res.code,
+                    userInfo: e.detail.userInfo
+                }
+            })
+            if (!!rlt.data) {
+              let data = rlt.data;              
+              wepy.setStorageSync('Y-Token',data.data.token)
+              this.showLogin=false
+            } else {
+              this.showLogin=true
+            }
+          }
+        }
+      }
+    }
+    data =  {
+      avatarUrl:'',
+      username:'',
+      memberData:{},
+      staData:{},
+      offerQualified:0
+    }
+    async onShow() {
+      if(!wepy.getStorageSync('Y-Token')){
+        wepy.switchTab({
+          url: '/pages/index'
+        })        
+      }else{
+        let userInfo = wepy.getStorageSync('user')
+        this.offerQualified = userInfo.offerQualified
+        
+      }
+    }
+
+    async onLoad(){
+      if(!!wepy.getStorageSync('Y-Token')){            
+        let userInfo = wepy.getStorageSync(USER_INFO)
+        this.avatarUrl = userInfo.avatarUrl
+        this.username = userInfo.nickName
+        let memberData= await api.getMember()
+        let memberStatistic = await api.getStatisticMember()        
+        this.memberData = memberData.data.data   
+        this.staData = memberStatistic.data.data
+        console.log(this.staData);
+        
+      }      
+    }
+  }
+</script>
+
+<style lang="less">
+.loginCon{
+  position:absolute;
+  bottom:40rpx;
+  left:23rpx;
+}
+.wechatIcon{
+  width: 40rpx;
+  height:35rpx;
+  margin-bottom:-5rpx;
+}
+.loginBtn{
+  color: #fff;
+  font-size: 30rpx;
+  width:702rpx;
+  height:80rpx;
+  background:linear-gradient(90deg,rgba(112,218,157,1) 0%,rgba(50,187,148,1) 100%);
+  border-radius:40px;
+}
+.cusModal{
+  display: block;
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  background:rgba(0, 0, 0, 0.7);
+  z-index:9999;
+  transition:all 0.2s ease-in-out;
+  .tip{
+    position: relative;
+    z-index: 1000;
+  }
+}
+
+
+
+.line-cell {
+  display: flex;
+  image {
+    width: 50rpx;
+    height: 52rpx;
+    margin-top: 28rpx;
+    margin-right: 25px;
+    margin-left: 25px;
+  }
+}
+.right {
+  float: right;
+  margin-right: 24px;
+}
+.c-cell {
+  border-bottom: 1px solid #ebebeb;
+  font-size: 30rpx;
+  line-height: 107rpx;
+  flex-grow: 2;
+}
+.divider {
+  height: 23rpx;
+  width: 100%;
+  background: #f8f8f8;
+}
+.top-divider {
+  margin-top: 36rpx;
+}
+.count {
+  font-size: 28rpx;
+  font-weight: 500;
+}
+.countNum {
+  font-size: 24rpx;
+  color: #666;
+}
+.statistic {
+  i-col {
+    text {
+      display: block;
+      text-align: center;
+    }
+  }
+}
+
+.stat-view {
+  border-right: 1px solid #e4e4e4;
+}
+
+.personal_top {
+  width: 100%;
+  height: 258rpx;
+}
+.info {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: -150rpx;
+  .view-content {
+    width: 315rpx;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    margin-bottom: 58rpx;
+  }
+  .avatar {
+    border: 3px solid #fff;
+    border-radius: 100%;
+    display: inline-block;
+    width: 40px;
+    align-self: center;
+    box-shadow: 0 0 40rpx #e9e9e9;
+  }
+  .des {
+    align-self: center;
+    display: flex;
+    align-items: center;
+    text {
+      font-size: 22rpx;
+      color: #4faf6e;
+      line-height: 0;
+    }
+  }
+  .name {
+    align-self: center;
+    margin-top: 5px;
+    margin-bottom: 6px;
+    font-size: 36rpx;
+  }
+}
+
+.user_icon {
+  width: 18rpx;
+  height: 21rpx;
+  margin-right: 5px;
+}
+
+.line-cell-noborder {
+  .c-cell {
+    border-bottom: 0;
+  }
+}
+</style>

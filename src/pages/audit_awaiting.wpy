@@ -1,0 +1,248 @@
+<template>
+  <view class="box">
+    <view>
+        <view class="jieguoBox" wx:if="{{dataList.expertQualified == 0}}">
+          <image class="jieguo" src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/zj_pic_dengdai@2x.png" />
+          <text>您已提交申请</text>
+          <text class="text1">请等待审批</text>
+        </view>
+        <view class="jieguoBox" wx:if="{{dataList.expertQualified == 2}}">
+          <image class="jieguo" src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/zj_pic_shibai@2x.png" />
+          <text>对不起！你的申请不合格</text>
+          <text class="text1">理由：{{dataList.remarks}}</text>
+        </view>
+        <view class="jieguoBox" wx:if="{{dataList.expertQualified == 1}}">
+          <image class="jieguo" src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/zj_pic_tongguo@2x.png" />
+          <text>您的申请已通过审核</text>
+          <text class="text1">您现在是专家</text>
+        </view>
+        <!-- <view class="jieguoBox">
+          <image class="jieguo" src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/zj_pic_shibai@2x.png" />
+          <text>对不起！你的专家资格已被禁用</text>
+          <text class="text1">理由：{{dataList.remarks}}</text>
+        </view> -->
+        <view class="inputBoxs">
+            <view class="inputBox">
+                <text>姓名</text>
+                <input type="text"  placeholder="请输入真实姓名 与证件保持一致" disabled value="{{dataList.name}}"/>
+            </view>
+            <view class="inputBox">
+                <text>职位职称</text>
+                <input type="text" placeholder="点击输入" disabled value="{{dataList.position}}"/>
+                <image src="{{apiDomain}}/pigIMG/icons/zj_icon_gongkai@2x.png" wx:if="{{dataList.positionIsHidden == 1}}"/>
+                <image src="{{apiDomain}}/pigIMG/icons/zj_icon_bugongkai@2x.png" wx:else/>
+            </view>
+            <view class="inputBox">
+                <text>服务地区</text>
+                <input type="text" placeholder="请选择服务地区" disabled value="{{dataList.province}}{{dataList.city}}{{dataList.county}}"/>
+            </view>
+            <view class="inputBox">
+                <text>单位名称</text>
+                <input type="text" placeholder="北京市海淀区兽医院" disabled value="{{dataList.company}}"/>
+                <image src="{{apiDomain}}/pigIMG/icons/zj_icon_gongkai@2x.png" wx:if="{{dataList.companyIsHidden == 1}}"/>
+                <image src="{{apiDomain}}/pigIMG/icons/zj_icon_bugongkai@2x.png" wx:else/>
+            </view>
+        </view>   
+        <view class="inputBoxs">
+            <view class="inputBox">
+                <text>手机号</text>
+                <input type="text"  placeholder="请输入手机号 不对外公开" disabled value="{{dataList.phone}}"/>
+            </view>
+            <view class="inputBox">
+                <text>微信号</text>
+                <input type="text"  placeholder="请输入微信号 不对外公开" disabled value="{{dataList.wechat}}"/>
+            </view>
+            <view class="inputBox" style="height:162rpx;">
+                <text>个人简介</text>
+                <textarea maxlength="500" placeholder="请输入您擅长的领域，从业经验、背景 等介绍 不对外公开" disabled value="{{dataList.introduction}}"></textarea>
+            </view> 
+        </view>
+        <view class="fileBox">
+          <view>
+            <text class="title">上传照片</text>
+            <view class="upImg" ><image src="{{imgPath}}{{dataList.photo}}" /></view>
+              <!-- <view class="upImg" ><image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/tw_icon_shangchuan@2x.png" /></view> -->
+          </view>
+        </view> 
+        <view class="fileBox">
+            <view>
+                <text class="title">上传证件</text>
+                <view class="upImg" >
+                  <image wx:if="{{dataList.certificatesImg1}}" src="{{imgPath}}{{dataList.certificatesImg1}}" />
+                  <image wx:if="{{dataList.certificatesImg2}}" src="{{imgPath}}{{dataList.certificatesImg2}}" />
+                  <image wx:if="{{dataList.certificatesImg3}}" src="{{imgPath}}{{dataList.certificatesImg3}}" />
+                  <image wx:if="{{dataList.certificatesImg4}}" src="{{imgPath}}{{dataList.certificatesImg4}}" />
+                </view>
+                <!-- <view class="upImg" ><image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/tw_icon_shangchuan@2x.png" /></view> -->
+            </view>
+        </view> 
+        <i-button class="i-submit" type="success" shape="circle" wx:if="{{dataList.status == 2 || dataList.status == 4}}" @tap="repeatApply">重新申请</i-button>
+    </view>
+    <i-toast id="toast" />
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy';
+import api from '../api/api'
+import tip from '../utils/tip'
+import WxValidate from '../utils/WxValidate.js'
+import { apiDomain, requestPath } from '@/utils/wxRequest'
+const { $Toast } = require('../iview/base/index');
+export default class Quickask extends wepy.page {
+  config = {
+    navigationBarTitleText: '认证结果',
+    usingComponents: {
+      'i-input': '../iview/input/index',
+      'i-action-sheet': '../iview/action-sheet/index',
+      'i-panel': '../iview/panel/index',
+      "i-toast": "../iview/toast/index"
+    }
+  };
+  data = {
+    dataList:'',
+    apiDomain: apiDomain,
+    imgPath: requestPath.ImgPath
+  };
+  methods = {
+    repeatApply() {//重新申请
+      wx.navigateTo({
+        url:'expert_certification?id='+this.dataList.id,  //跳转详情
+      })
+    }
+   
+  }
+  async getUserInfo(){
+    let res = await api.professInfo({
+      method: 'GET',
+    })
+    if (res.data.status) {
+      console.log(res);
+      this.dataList = res.data.data
+      this.$apply()
+    } else {
+      this.showModal('加载失败，请稍后再试')
+      return false 
+    }
+  }
+
+  showModal(error) {//轻提示
+    $Toast({
+      content: error,
+      type: 'error'
+    });
+  }
+
+  onLoad() {
+    this.getUserInfo()
+  }
+
+}
+</script>
+
+<style lang="less">
+page,
+.box {
+  background-color: #f7f4f0;
+}
+.inputBoxs {
+  margin-top: 20rpx;
+}
+.inputBox {
+  height: 100rpx;
+  background-color: #fff;
+  padding: 0 24rpx;
+  line-height: 100rpx;
+  display: flex;
+  border-bottom: 1px solid rgba(235, 235, 235, 1);
+  text {
+    width: 180rpx;
+    float: left;
+    font-size: 30rpx;
+  }
+  input {
+    float: left;
+    height: 100rpx;
+    line-height: 100rpx;
+    padding-left: 20px;
+    text-align: left;
+    flex: 1;
+    font-size: 28rpx;
+  }
+  textarea {
+    flex: 1;
+    font-size: 28rpx;
+    height: 130rpx;
+    padding-left: 20px;
+    padding-top: 30rpx;
+    line-height: 45rpx;
+  }
+  image {
+    width: 32rpx;
+    height: 26rpx;
+    margin-top: 32rpx;
+  }
+}
+.fileBox {
+  padding: 34rpx 40rpx 38rpx;
+  margin-top: 20rpx;
+  background-color: #fff;
+  overflow: hidden;
+  .title {
+    font-size: 30rpx;
+    color: #333333;
+    float: left;
+  }
+  .stitle {
+    font-size: 24rpx;
+    color: #999999;
+  }
+  .upImg {
+    width: 138rpx;
+    height: 138rpx;
+    margin-left: 50rpx;
+    margin-top: 5rpx;
+    float: left;
+    text-align: center;
+    line-height: 138rpx;
+    border-radius: 8rpx;
+    image {
+      width: 100%;
+      height: 100%;
+    }
+  }
+}
+.jieguoBox {
+  margin-top: 20rpx;
+  background-color: #fff;
+  text-align: center;
+  padding: 40rpx 0 24rpx 0;
+
+  text {
+    display: block;
+    font-size: 30rpx;
+    font-weight: 550;
+    color: #333333;
+    line-height: 46rpx;
+  }
+  .text1 {
+    font-size: 24rpx;
+    font-weight: 500;
+    color: #666666;
+    line-height: 46rpx;
+  }
+  .jieguo {
+    width: 160rpx;
+    height: 160rpx;
+  }
+}
+
+// .tishi {
+//   padding: 35rpx 25rpx 15rpx 25rpx;
+//   font-size: 24rpx;
+//   color: #999999;
+//   .wxts {
+//     color: #f48d0e;
+//   }
+// }
+</style>

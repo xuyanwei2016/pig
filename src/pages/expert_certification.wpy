@@ -1,0 +1,471 @@
+<template>
+  <view class="box">
+    <view>
+      <form bindsubmit="formSubmit">
+        <view class="inputBoxs">
+          <view class="inputBox">
+            <text><text class="required">*</text>姓名</text>
+            <input type="text" placeholder="请输入真实姓名 与证件保持一致" name="name"/>
+          </view>
+          <view class="inputBox">
+            <text><text class="required">*</text>职位职称</text>
+            <input type="text" placeholder="点击输入" name="technical"/>
+            <image src="{{apiDomain}}/pigIMG/icons/{{technicImg}}" @tap="changeTechnic"/>
+          </view>
+          <view class="inputBox">
+            <text><text class="required">*</text>服务地区</text>
+            <picker mode="region" bindchange="bindRegionChange" value="{{region}}">
+              <view class="picker">
+                {{region[0]}}，{{region[1]}}，{{region[2]}}
+              </view>
+            </picker>
+          </view>
+          <view class="inputBox">
+            <text>单位名称</text>
+            <input type="text" placeholder="北京市海淀区兽医院" name="company"/>
+            <image src="{{apiDomain}}/pigIMG/icons/{{companyImg}}" @tap="changeCompany"/>
+          </view>
+        </view>   
+        <view class="inputBoxs">
+          <view class="inputBox">
+            <text>手机号</text>
+            <input type="text"  placeholder="请输入手机号 不对外公开" name="tel"/>
+          </view>
+          <view class="inputBox">
+            <text>微信号</text>
+            <input type="text"  placeholder="请输入微信号 不对外公开" name="wxNum"/>
+          </view>
+          <view class="inputBox" style="height:162rpx;">
+            <text>个人简介</text>
+            <textarea maxlength="500" placeholder="请输入您擅长的领域，从业经验、背景 等介绍 不对外公开" name="profile"></textarea>
+          </view>
+        </view>
+        <view class="fileBox">
+          <view>
+            <text class="title">上传照片</text>
+            <view class="upImg">
+              <view class="img" wx:if="{{userHeaderImg != ''}}">
+                <image src="{{userHeaderImg}}"  background-size="cover" @tap="previewHeader"/>
+                <image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/ft_icon_guanbi@2x.png" class="close" @tap="deleteHeader"/>
+              </view>
+              <image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/tw_icon_shangchuan@2x.png" wx:else @tap="userImg"/>
+            </view>
+          </view>
+        </view>
+        <view class="tishi">
+          <text class="wxts">温馨提示：</text>
+          <text>您上传的证件照片将作为专家头像公开展示</text>
+        </view>
+        <view class="fileBox">
+          <view>
+            <text class="title"><text class="required">*</text>上传证件</text>
+            <view class="upImg">
+              <view wx:for="{{imageList}}" wx:if="{{imageList.length != 0}}" wx:key="{{index}}" class="img">
+                <image src="{{item}}" background-size="cover" @tap="previewImg" data-index="{{index}}"/>
+                <image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/ft_icon_guanbi@2x.png" class="close" @tap="deleteImg" data-index="{{index}}"/>
+              </view>
+              <image src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/tw_icon_shangchuan@2x.png" wx:if="{{imageList.length<4}}"  @tap="identification"/>
+            </view>
+          </view>
+        </view> 
+        <view class="tishi">
+          <text class="wxts">温馨提示：</text>
+          <text>执业兽医师资格证、名片、毕业证、工作证、职业证书等可以证明您身份的证件，最多上传四张。证件照片信息只用于后台审核，不对外公开。</text>
+        </view>
+        <button class="btn" type="success" shape="circle" formType="submit" loading="{{offerLoading}}">提交</button>
+      </form>
+      <i-toast id="toast" />
+    </view>
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy';
+import WxValidate from '../utils/WxValidate.js'
+import api from '@/api/api'
+import tip from '../utils/tip'
+import { apiDomain, requestPath } from '@/utils/wxRequest'
+const { $Toast } = require('../iview/base/index');
+
+export default class Quickask extends wepy.page {
+  config = {
+    navigationBarTitleText: '成为专家',
+    usingComponents: {
+      'i-input': '../iview/input/index',
+      'i-action-sheet': '../iview/action-sheet/index',
+      'i-button': '../iview/button/index',
+      'i-panel': '../iview/panel/index',
+      "i-toast": "../iview/toast/index"
+    }
+  };
+  data = {
+    visibleImg: false,
+    visibleVid: false,
+    index: 0,
+    array: ['育肥猪', '保育猪', '断奶仔猪', '后背母猪', '妊娠母猪', '哺乳母猪'],
+    userHeaderImg:[],
+    imageList:[],
+    region: ['北京市', '北京市', '海淀区'],
+    commonImg:'http://192.168.2.230:9096/file/file/?fileName=pigIMG/icons/',
+    technicImg: 'zj_icon_gongkai@2x.png',
+    companyImg: 'zj_icon_gongkai@2x.png',
+    technicSatus:1, //公开
+    companySatus:1, //公开
+    offerLoading: false,
+    userId:'',
+    imgList:[],
+    apiDomain: apiDomain,
+    imgPath: requestPath.ImgPath
+  };
+  methods = {
+    //普通选择器：
+    bindPickerChange: function(e) {
+      this.index = e.detail.value;
+    },
+    userImg() {//头像
+      wx.chooseImage({
+        count: 1,// 默认9
+        sizeType: ['original', 'compressed'],  //可选择原图或压缩后的图片
+        sourceType: ['album', 'camera'], //可选择性开放访问相册、相机
+        success: res => {
+          this.userHeaderImg = res.tempFilePaths
+          this.$apply();
+        }
+      })
+    },
+    identification(){//证件
+      const imgNum = this.imageList.length
+      wx.chooseImage({
+      count: 4-imgNum,
+      sizeType: ['original', 'compressed'],  //可选择原图或压缩后的图片
+      sourceType: ['album', 'camera'], //可选择性开放访问相册、相机
+      success: res => {
+          this.imageList = this.imageList.concat(res.tempFilePaths);
+          this.$apply();
+        }
+      })
+    },
+    previewHeader(){//头像的图片预览
+      wx.previewImage({
+        current: this.userHeaderImg,//当前显示图片
+        urls: this.userHeaderImg//所有图片
+      })
+    },
+    previewImg(e){//图片预览
+      var index = e.currentTarget.dataset.index;//获取当前图片的下标
+      var imgs = this.imageList;//所有图片
+      wx.previewImage({
+        current: imgs[index],//当前显示图片
+        urls: imgs//所有图片
+      })
+    },
+    deleteHeader(){//头像删除
+      this.userHeaderImg = [];
+    },
+    deleteImg: function (e) {//证件删除
+      var imgs = this.imageList;
+      var index = e.currentTarget.dataset.index;
+      imgs.splice(index, 1);
+      this.imageList = imgs;
+    },
+    changeTechnic() {//改变职位是否公开的状态
+      if (this.technicImg == 'zj_icon_gongkai@2x.png') {
+        this.technicImg = 'zj_icon_bugongkai@2x.png'
+        this.technicSatus = 0 //不公开
+      } else{
+        this.technicImg = 'zj_icon_gongkai@2x.png'
+        this.technicSatus = 1 //公开
+      }
+    },
+    changeCompany() {//改变职位是否公开的状态
+      if (this.companyImg == 'zj_icon_gongkai@2x.png') {
+        this.companyImg = 'zj_icon_bugongkai@2x.png'
+        this.companySatus = 0 //不公开
+      } else{
+        this.companyImg = 'zj_icon_gongkai@2x.png'
+        this.companySatus = 1 //公开
+      }
+    },
+    bindRegionChange(e) {
+      this.region= e.detail.value
+    },
+  };
+
+  showModal(error) {//轻提示
+    $Toast({
+      content: error,
+      type: 'error'
+    });
+  }
+
+  async formSubmit(e) {//表单提交
+    let errorImgNum = 0;
+    const params = e.detail.value
+    if (this.WxValidate.checkForm(params)) {
+      if(this.imageList.length>0) {//要判断个人证件是否选择
+        this.offerLoading = true
+        for (let i = 0; i < this.imageList.length; i++) {
+          let res = await wepy.uploadFile({
+            url: apiDomain+requestPath.file +'/upload',
+            filePath: this.imageList[i],
+            name:'file'
+          })
+          if (res.statusCode == 200) {
+            this.$apply()
+            this.imgList.push(res.data)
+          } else{
+            errorImgNum++
+          }
+        }
+        if (errorImgNum>0) {
+          this.showModal(errorImgNum+'张图片上传失败');//提示用户上传失败
+        }
+        if(this.userHeaderImg.length != 0){
+          let res = await wepy.uploadFile({
+            url: apiDomain+requestPath.file +'/upload',
+            filePath: this.userHeaderImg[0],
+            name:'file'
+          })
+          if (res.statusCode == 200) {
+            this.$apply()
+            this.userHeaderImg = res.data;
+          } else {
+            this.showModal('照片上传失败');//提示用户上传失败
+          }
+        }
+        const data = {
+          certificatesImg: this.imgList, //证件照集合
+          province: this.region[0], //省
+          city: this.region[1], //市
+          county: this.region[2], //县
+          company: params.company,//单位名称 ,
+          companyIsHidden: this.technicSatus,//单位是否隐藏 0隐藏 1 显示 ,
+          expertQualified:0, // (integer, optional): 申请成为专家状态 0 未审核 1 已通过 2已驳回 ,
+          introduction: params.profile, //个人简介
+          name: params.name, //真实姓名 
+          phone: params.tel, //手机号
+          photo: this.userHeaderImg, // 照片
+          position: params.technical, //职称职位 
+          positionIsHidden: this.companySatus, //职位是否隐藏 0隐藏 1 显示 ,
+          wechat: params.wxNum//微信号
+        }
+        if (this.userId) {//再次申请
+          data.id = this.userId
+          let res = await api.certifiedRepeat({
+            method: 'POST',
+            query: data
+          })
+          this.offerLoading = false
+          if (res.data.status) {
+            tip.success("您已提交申请，请等待审核");
+            this.$apply()
+            //跳转到待审核页面
+            wepy.redirectTo({ url: 'audit_awaiting' })
+          } else {
+            this.showModal('提交失败')
+          }
+        } else{//初次申请
+          let res = await api.certifiedProfess({
+            method: 'POST',
+            query: data
+          })
+          this.offerLoading = false
+          if (res.data.status) {
+            tip.success("您已提交申请，请等待审核");
+            this.$apply()
+            //跳转到待审核页面
+            wepy.redirectTo({ url: 'audit_awaiting' })
+          } else {
+            this.showModal('提交失败')
+          }
+        }
+      } else{//未上传个人证件
+        this.showModal('请上传个人证件')
+      }
+    } else{
+      const error = this.WxValidate.errorList[0]
+      this.showModal(error.msg)
+      return false
+    }
+  }
+
+  /*表单-验证字段*/
+  initValidate() {
+    const rules = {
+      name: {
+        required: true,
+        rangelength: [2,10]
+      },
+      technical: {
+        required: true,
+        rangelength: [1,20]
+      },
+      company:{
+        rangelength: [1,20]
+      },
+      tel: {
+        tel: true,
+      },
+      wxNum:{
+        rangelength: [1,20]
+      },
+      profile:{
+        rangelength: [1,50]
+      },
+
+    }
+    const messages = {// 验证字段的提示信息，若不传则调用默认的信息
+      name: {
+        required: '请输入姓名',
+        rangelength: '姓名限制2-10字'
+      },
+      technical: {
+        required: '请输入职位职称',
+        rangelength: '职位职称限制20字以内'
+      },
+      company: {
+        rangelength: '单位名称限制20字以内'
+      },
+      tel: {
+        tel: '请输入正确的手机号码',
+      },
+      wxNum: {
+        rangelength: '微信号限制20字以内',
+      },
+      profile:{
+        rangelength: '个人简介限制50字以内',
+      },
+    }
+    // 创建实例对象
+    this.WxValidate = new WxValidate(rules, messages)
+    // this.WxValidate.addMethod("userName", function(value, param) {
+    //   return /^[0-9]*$/.test(value)
+    // });
+  }
+
+  onLoad(option) {
+    this.userId = option.id;
+    this.initValidate();
+  }
+  
+}
+</script>
+
+<style lang="less">
+page,
+.box {
+  background-color: #f8f8f8;
+}
+.inputBoxs {
+  margin-top: 20rpx;
+}
+.inputBox {
+  height: 100rpx;
+  background-color: #fff;
+  padding: 0 24rpx;
+  line-height: 100rpx;
+  display: flex;
+  &:not(:last-of-type){border-bottom: 1px solid rgba(235, 235, 235, 1);}
+  text {
+    width: 180rpx;
+    float: left;
+    font-size: 30rpx;
+  }
+  input,.picker{
+    float: left;
+    height: 100rpx;
+    line-height: 100rpx;
+    padding-left: 20px;
+    text-align: left;
+    flex: 1;
+    font-size: 28rpx;
+  }
+  textarea {
+    flex: 1;
+    font-size: 28rpx;
+    height: 130rpx;
+    padding-left: 20px;
+    padding-top: 30rpx;
+    line-height: 45rpx;
+  }
+  image {
+    width: 32rpx;
+    height: 26rpx;
+    margin-top: 32rpx;
+  }
+}
+.fileBox {
+  padding: 34rpx 40rpx 38rpx;
+  margin-top: 20rpx;
+  background-color: #fff;
+  overflow: hidden;
+  .title {
+    font-size: 30rpx;
+    color: #333333;
+    float: left;
+  }
+  .stitle {
+    font-size: 24rpx;
+    color: #999999;
+  }
+  .upImg {
+    margin-left: 50rpx;
+    margin-top: 5rpx;
+    float: left;
+    line-height: 138rpx;
+    border-radius: 8rpx;
+    width: 60%;
+    .img{
+      position: relative;
+      float: left;
+      width: 138rpx;
+      height: 138rpx;
+      margin-right: 20rpx;
+      display: inline-block;
+      margin-bottom: 20rpx;
+    }
+    image {
+      width: 138rpx;
+      height: 138rpx;
+      float: left;
+    }
+    .close{
+      width: 37rpx;
+      height: 37rpx;
+      position: absolute;
+      right: 10rpx;
+      top: 10rpx;
+    }
+  }
+}
+.section {
+  flex: 1;
+  font-size: 30rpx;
+  picker {
+    float: right;
+    .picker {
+      font-size: 28rpx;
+    }
+  }
+}
+.tishi {
+  padding: 35rpx 25rpx 15rpx 25rpx;
+  font-size: 24rpx;
+  color: #999999;
+  .wxts {
+    color: #f48d0e;
+  }
+}
+.btn{
+  margin:10px;
+  border-radius:44px;
+  color:#fff !important;
+  background:#19be6b !important;
+  font-size:14px;
+  height:44px;
+  line-height:44px;
+}
+button::after{
+   border: none;
+}
+</style>

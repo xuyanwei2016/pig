@@ -1,0 +1,231 @@
+<template>
+  <view class="container">
+    <swiper class="swiper" indicator-active-color="{{indicatorActiveColor}}" indicator-color="{{indicatorColor}}" indicator-dots="{{indicatorDots}}" autoplay="{{autoplay}}" interval="{{interval}}" duration="{{duration}}" circular>
+      <block wx:for="{{adList}}" wx:key="key">
+        <swiper-item>
+          <image src="{{item.picUrl}}" class="slide-image" mode="aspectFill" lazy-load="true"/>
+        </swiper-item>
+      </block>
+    </swiper>
+    <view class="nav-wrap">
+      <navigator class="price-nav" url="nationwide_price">
+        <text>全国猪价</text>
+        <i-icon type="enter" size="13" color="#B6B6B6"/>
+      </navigator>
+      <navigator class="price-nav" url="nearby_price">
+        <text>附近猪价</text>
+        <i-icon type="enter" size="13" color="#B6B6B6"/>
+      </navigator>
+    </view>
+    <view class="table-title">
+      {{month}}月{{day}}日生猪外三元110kg价格<text class="color-grey">（仅供参考）</text>
+    </view>
+    <view class="table">
+      <view class="table-tr">
+        <text class="table-td">地区</text>
+        <text class="table-td">省份</text>
+        <text class="table-td">猪价(元/kg)</text>
+        <text class="table-td">涨跌</text>
+      </view>
+      <view class="table-tr" wx:for="{{regionArr}}" wx:for-item="regionItem" wx:key="*this">
+        <view class="td-1">{{regionItem}}</view>
+        <view class="td-3">
+          <view class="table-tr" wx:for="{{regions[regionItem]}}" wx:for-item="prov" wx:key="prov">
+            <text class="table-td">{{prov}}</text>
+            <text class="table-td">{{priceListObj[prov]?priceListObj[prov].minPigPrice+'-'+priceListObj[prov].maxPigPrice:'--'}}</text>
+            <text wx:if="{{!priceListObj[prov].riseFallPigPrice}}" class="table-td">--</text>
+            <text wx:else class="table-td {{priceListObj[prov].riseFallPigPrice>0 ? 'green' : 'red'}}">{{priceListObj[prov].riseFallPigPrice}} {{priceListObj[prov].riseFallPigPrice>0 ? '↑' : '↓'}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="table-title second">
+      {{month}}月{{day}}日仔猪15kg价格<text class="color-grey">（仅供参考）</text>
+    </view>
+    <view class="table">
+      <view class="table-tr">
+        <text class="table-td">地区</text>
+        <text class="table-td">省份</text>
+        <text class="table-td">猪价(元/kg)</text>
+        <text class="table-td">涨跌</text>
+      </view>
+      <view class="table-tr" wx:for="{{regionArr}}" wx:for-item="regionItem" wx:key="*this">
+        <view class="td-1">{{regionItem}}</view>
+        <view class="td-3">
+          <view class="table-tr" wx:for="{{regions[regionItem]}}" wx:for-item="prov" wx:key="prov">
+            <text class="table-td">{{prov}}</text>
+            <text class="table-td">{{ priceListObj[prov]?priceListObj[prov].minPigletPrice+'-'+priceListObj[prov].maxPigletPrice:'--'}}</text>
+            <text wx:if="{{!priceListObj[prov].riseFallPigletPrice}}" class="table-td">--</text>
+            <text wx:else class="table-td {{priceListObj[prov].riseFallPigletPrice>0 ? 'green' : 'red'}}">{{priceListObj[prov].riseFallPigletPrice}} {{priceListObj[prov].riseFallPigletPrice>0 ? '↑' : '↓'}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <navigator class="round-nav" url="offer"><view>我要</view>报价</navigator>
+    <i-toast id="toast" />
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import {getCurrentTime} from '@/utils/util'
+import api from '@/api/api'
+import tip from '@/utils/tip'
+import {errorMsg} from '@/utils/publicFunction'
+import { regions } from '@/utils/region'
+
+export default class Search extends wepy.page {
+  config = {
+    navigationBarTitleText: '查猪价',
+    enablePullDownRefresh: true,
+    usingComponents: {
+      'i-toast': '../iview/toast/index',
+      'i-icon': '../iview/icon/index',
+      'i-cell-group': '../iview/cell-group/index',
+      'i-cell': '../iview/cell/index',
+      'i-panel': '../iview/panel/index'
+    }
+  }
+
+  methods = {
+  }
+
+  async onLoad(){
+    this.getPriceList()
+    if(!wepy.getStorageSync('Y-Token')){
+      wepy.switchTab({
+        url: '/pages/index'
+      })        
+    }
+
+    let adPics = await api.getAdList({id:'wx_index5'}) 
+    adPics.data.data.map((i,k) => {
+      if (i>5) {
+        return
+      }
+      this.adList.push({picUrl:`http://122.14.50.6:8096/file/file/?fileName=${i.picture}&isOnLine=true`, key: k})
+    })
+  }
+
+  data = {
+    indicatorActiveColor: '#fff',
+    indicatorColor: 'rgba(255, 255, 255, .6)',
+    indicatorDots: true,
+    autoplay: true,
+    interval: 3000,
+    duration: 1000,
+    regionArr: ['华北', '东北', '华中', '华东', '华南', '西南', '西北'],
+    adList: [], //轮播
+    priceList: [],
+    priceListObj: {},
+    regions: regions,
+    address: '北京市',    
+    date: `${getCurrentTime().substring(0,4)}-${getCurrentTime().substring(4,6)}-${getCurrentTime().substring(6,8)}`,
+    month: getCurrentTime().substring(4,6),    
+    day: getCurrentTime().substring(6,8)
+  }
+
+  async getPriceList() {
+    let that = this
+    let res = await api.getTodayPrice({
+      query: {date: this.date}
+    })
+    if (res.data.status) {
+      this.priceList = res.data.data
+      if (this.priceList.length>0) {
+        this.priceListObj = this.priceList.reduce((obj,el) => {
+          obj[el.province] = el
+          return obj
+        }, {})
+      }
+      this.$apply()
+    } else {
+      errorMsg(res.data, '查猪价')
+    }
+  }
+
+  onPullDownRefresh() { //下拉刷新
+    this.getPriceList().then(() => {
+      wepy.stopPullDownRefresh()
+    })
+  }
+}
+</script>
+
+<style lang="less">
+  .loginCon{
+  position:absolute;
+  bottom:40rpx;
+  left:23rpx;
+}
+.wechatIcon{
+  width: 40rpx;
+  height:35rpx;
+  margin-bottom:-5rpx;
+}
+.loginBtn{
+  color: #fff;
+  font-size: 30rpx;
+  width:702rpx;
+  height:80rpx;
+  background:linear-gradient(90deg,rgba(112,218,157,1) 0%,rgba(50,187,148,1) 100%);
+  border-radius:40px;
+}
+.cusModal{
+  display: block;
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  background:rgba(0, 0, 0, 0.7);
+  z-index:9999;
+  transition:all 0.2s ease-in-out;
+  .tip{
+    position: relative;
+    z-index: 1000;
+  }
+}
+
+  page{
+    background-color: #F8F8F8;
+  }
+  .nav-wrap{
+    position: absolute;
+    display: flex;
+    justify-content: space-between;
+    top: 332rpx;
+    width: 100%;
+    padding: 0 24rpx;
+    box-sizing: border-box;
+  }
+  .table-title{
+    margin-top: 100rpx;
+    padding: 0 24rpx;
+    color: #333;
+    font-size: 30rpx;
+    font-weight: bold;
+    .color-grey{
+      color: #999;
+      font-size: 24rpx;
+      font-weight: normal;
+    }
+    &.second{margin-top: 50rpx;}
+  }
+  .table{
+    .td-1{
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-right: 1rpx solid #EBEBEB;
+    }
+    .td-3{
+      flex: 4;
+      display: flex;
+      flex-direction: column;
+      color: #666;
+    }
+  }
+</style>

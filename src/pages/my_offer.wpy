@@ -1,0 +1,137 @@
+<template>
+  <view class="container">
+    <view class="offer-card" wx:if="{{quotations.length>0}}">
+      <view class="user">
+        <i-avatar i-class="user-avatar" src="{{avatarUrl}}"></i-avatar>
+        <view class="user-detail">
+          <view class="username">{{username}}</view>
+          <view>已认证为报价用户</view>
+        </view>
+      </view>
+    </view>
+    <view class="user-info"  wx:if="{{quotations.length>0}}">
+      <!-- <view>来源：{{}}</view> -->
+      <view>单位名称：{{quotationUser.company}}</view>
+      <view>联系人姓名：{{quotationUser.name}}</view>
+      <view>手机号码：{{quotationUser.phone}}</view>
+      <view>地址：{{quotationUser.province}} {{quotationUser.city}} {{quotationUser.county}} </view>
+    </view>
+
+    <view class="offer-item" wx:for="{{quotations}}" wx:key="id" wx:if="{{quotations.length>0}}">
+      <text>外三元：{{item.pigPrice}}元/斤 仔猪：{{item.pigletPrice}}元/斤</text>
+      <text class="date">{{item.updateTime}}</text>
+    </view>
+    
+    <view class="listNull" wx:if="{{quotations.length < 1}}">
+      <image src="../assets/img/pic_zanwuhuida@2x.png"/>
+      <text>暂无报价</text>
+    </view>
+    
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import api from '@/api/api'
+
+export default class My_offer extends wepy.page {
+  config = {
+    navigationBarTitleText: '我的报价',
+    navigationBarBackgroundColor: '#4FAF6E',
+    navigationBarTextStyle: 'white',
+    usingComponents: {
+      'i-avatar': '../iview/avatar/index'
+    }
+  }
+  data = {
+    quotationUser:{},
+    userInfo:{},
+    avatarUrl:'',
+    username:'',
+    quotations: []
+  }
+  methods = {}
+  async onLoad(){  
+    let userInfo = wepy.getStorageSync('userInfo')
+    this.avatarUrl = userInfo.avatarUrl
+    this.username = userInfo.nickName
+
+    let quotationUser = await api.getMemberQuotation()
+
+    this.quotationUser = quotationUser.data.data
+    
+    let res = await api.getQuotations({pageNumber:1,pageSize:10})
+
+    this.quotations = res.data.data.list
+
+  }
+}
+</script>
+<style lang="less">
+page{background-color: #f8f8f8;height: 100%;}
+.container{
+  height: 100%;
+}
+.offer-card{
+  height: 226rpx;
+  background-color: #4FAF6E;
+  // overflow: visible;
+  padding: 44rpx 24rpx 0;
+  box-sizing: border-box;
+  .user{
+    height: 182rpx;
+    padding: 38rpx 30rpx;
+    border-top-left-radius: 20rpx;
+    border-top-right-radius: 20rpx;
+    background-color: #fff;
+    border-bottom: 1rpx solid #EBEBEB;
+    box-sizing: border-box;
+    &-avatar{
+      width: 100rpx;
+      height: 100rpx;
+      border: 4rpx solid #fff;
+      border-radius: 50%;
+      box-shadow: 0 0 20rpx rgba(24, 114, 161, .2);
+    }
+    &-detail{
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 28rpx;
+      font-size: 22rpx;
+      color: #F48D0E;
+      line-height: 30rpx;
+    }
+    &name{
+      color: #333;
+      font-size: 36rpx;
+      line-height: 64rpx;
+    }
+  }
+}
+.user-info{
+  margin: 0 24rpx 20rpx;
+  padding: 16rpx 30rpx;
+  color: #666;
+  font-size: 28rpx;
+  line-height: 56rpx;
+  background-color: #fff;
+  border-bottom-left-radius: 20rpx;
+  border-bottom-right-radius: 20rpx;
+}
+.offer-item{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 164rpx;
+  padding: 36rpx 24rpx;
+  font-size: 30rpx;
+  color: #333;
+  background-color: #fff;
+  box-sizing: border-box;
+  &:not(:last-of-type){border-bottom: 1rpx solid #EBEBEB;}
+  .date{
+    font-size: 22rpx;
+    color: #999;
+  }
+}
+</style>

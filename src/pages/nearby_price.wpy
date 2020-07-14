@@ -1,0 +1,182 @@
+<template>
+  <view class="container">
+    <view class="price-panel">
+      <view class="selection">
+        <text class="time-text">{{month}}月{{day}}日猪价</text>
+      </view>
+      <view class="type_card">
+        <view class="pig_type">生猪(外三元)</view>
+        <view class="pricetag" wx:if="{{!priceObj.avgPigPrice}}">暂无报价</view>
+        <block wx:else>
+          <view class="pricetag {{priceObj.riseFallPigPrice>0?'red':''}} {{priceObj.riseFallPigPrice<0?'green':''}}">
+            {{priceObj.avgPigPrice}}<text wx:if="{{priceObj.riseFallPigPrice}}" class="trend-icon">{{priceObj.riseFallPigPrice>0?'▲':'▼'}}</text>
+          </view>
+          <view class="range-num">{{priceObj.riseFallPigPrice||'--'}}元/公斤</view>
+        </block>
+      </view>
+      <view class="type_card">
+        <view class="pig_type">仔猪</view>
+        <view class="pricetag" wx:if="{{!priceObj.avgPigletPrice}}">暂无报价</view>
+        <block wx:else>
+          <view class="pricetag {{priceObj.riseFallPigletPrice>0?'red':''}} {{priceObj.riseFallPigletPrice<0?'green':''}}">
+            {{priceObj.avgPigletPrice}}<text wx:if="{{priceObj.riseFallPigletPrice}}" class="trend-icon">{{priceObj.riseFallPigletPrice>0?'▲':'▼'}}</text>
+          </view>
+          <view class="range-num">{{priceObj.riseFallPigletPrice||'--'}}元/公斤</view>
+        </block>
+      </view>
+    </view>
+    <i-tabs i-class="index_tabs" current="{{ currentTab }}" color="#4FAF6E" @change="handleChange">
+      <i-tab i-class="tab-item" key="pig" title="外三元"></i-tab>
+      <i-tab i-class="tab-item" key="piglet" title="仔猪"></i-tab>
+    </i-tabs>
+    <view class="tab-content" hidden="{{currentTab !== 'pig'}}">
+      <view class="table">
+        <view class="table-tr">
+          <text class="table-td">日期</text>
+          <text class="table-td td-2">地区</text>
+          <text class="table-td">价格(元/kg)</text>
+          <text class="table-td">会员名</text>
+        </view>
+        <view class="table-tr">
+          <text class="table-td">10.28</text>
+          <text class="table-td td-2">北京市海淀区</text>
+          <text class="table-td">7.51</text>
+          <text class="table-td">路路</text>
+        </view>
+      </view>
+      <i-load-more wx:if="{{pigLoadMore}}" tip="{{pigLoadMore.tip}}" loading="{{ pigLoadMore.status }}" />
+    </view>
+    <view class="tab-content" hidden="{{currentTab !== 'piglet'}}">
+      <view class="table">
+        <view class="table-tr">
+          <text class="table-td">日期</text>
+          <text class="table-td td-2">地区</text>
+          <text class="table-td">价格(元/kg)</text>
+          <text class="table-td">会员名</text>
+        </view>
+        <view class="table-tr">
+          <text class="table-td">10.28</text>
+          <text class="table-td td-2">北京市丰台区</text>
+          <text class="table-td">7.51</text>
+          <text class="table-td">路路</text>
+        </view>
+      </view>
+      <i-load-more wx:if="{{pigletLoadMore}}" tip="{{pigletLoadMore.tip}}" loading="{{ pigletLoadMore.status }}" />
+    </view>
+    <navigator class="round-nav" url="offer"><view>我要</view>报价</navigator>
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import {getCurrentTime} from '@/utils/util'
+import api from '@/api/api'
+import tip from '@/utils/tip'
+import {errorMsg} from '@/utils/publicFunction'
+
+export default class Nearbyprice extends wepy.page {
+  config = {
+    navigationBarTitleText: '附近猪价',
+    navigationBarBackgroundColor: '#4FAF6E',
+    navigationBarTextStyle: 'white',
+    enablePullDownRefresh: true,
+    usingComponents: {
+      'i-load-more': '../iview/load-more/index',
+      'i-spin': '../iview/spin/index',
+      'i-tabs': '../iview/tabs/index',
+      'i-tab': '../iview/tab/index'
+    }
+  }
+  data = {
+    spinShow: false,
+    priceObj: {},
+    currentTab: 'pig',
+    pigLoadMore: {
+      status: true,
+      tip: '加载中'
+    },
+    pigletLoadMore: {
+      status: true,
+      tip: '加载中'
+    },
+    pigList: [],
+    pigletList: [],
+    maxPage: null,
+    pigQuery: {
+      pageNum: 1,
+      pageSize: 20,
+    },
+    pigletQuery: {
+      pageNum: 1,
+      pageSize: 20,
+    },
+    listQuery: {
+      // date: `${getCurrentTime().substring(0,4)}-${getCurrentTime().substring(4,6)}-${getCurrentTime().substring(6,8)}`,
+      province: '北京市'
+    },
+    month: getCurrentTime().substring(4,6),
+    day: getCurrentTime().substring(6,8)
+  }
+  onLoad() {
+    wepy.getStorageSync('province') ? this.listQuery.province = wepy.getStorageSync('province') : true
+    this.getPrice()
+    this.getNearbyPrice()
+  }
+  methods = {
+    handleChange ({ detail }) {
+      this.currentTab = detail.key
+      this.getNearbyPrice()
+    }
+  }
+  async getPrice() {
+    let that = this
+    let res = await api.getPrice({
+      query: this.listQuery
+    })
+    if (res.data.status) {
+      this.priceObj = res.data.data
+      console.log(this.priceObj);
+      that.$apply()
+    } else {
+      errorMsg(res.data, '查猪价')
+    }
+  }
+  async getNearbyPrice() {
+    let that = this
+    let res = await api.getNearbyPrice({
+      query: {...this[`${this.currentTab}Query`], ...this.listQuery}
+    })
+    if (res.data.status) {
+      let tempList = [...that[`${that.currentTab}List`], ...res.data.data.list]
+      console.log(tempList);
+      
+      that[`${that.currentTab}List`]= tempList.filter((obj, idx) => tempList.map(item => item.id).indexOf(obj.id) === idx) //去重
+      that[`${that.currentTab}Query`].maxPage = res.data.data.pages
+      console.log(that[`${that.currentTab}List`]);
+      
+      if (that[`${that.currentTab}Query`].maxPage <= that[`${that.currentTab}Query`].pageNum) {
+        that[`${that.currentTab}LoadMore`] = {
+          status: false,
+          tip: '暂无更多'
+        }
+      }
+      that.$apply()
+    } else {
+      errorMsg(res.data, '获取附近猪价列表')
+    }
+  }
+  onReachBottom() { //上拉加载
+    if (this[`${this.currentTab}Query`].pageNum < this.maxPage) {
+      this[`${this.currentTab}Query`].pageNum++
+      this.getNearbyPrice()
+    }
+  }
+}
+</script>
+
+<style lang="less">
+.table{
+  .table-tr:not(:first-of-type){color: #666;}
+  .td-2{flex:2;}
+}
+</style>

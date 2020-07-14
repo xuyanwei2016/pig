@@ -1,0 +1,29 @@
+{
+	"description": "diagnose pig disease",
+	"setting": {
+		"urlCheck": false,
+		"es6": false,
+		"postcss": false,
+		"minified": false,
+		"newFeature": true,
+		"nodeModules": true,
+		"uglifyFileName": false
+	},
+	"compileType": "miniprogram",
+	"appid": "wx8be2cb2a503c6bad",
+	"projectname": "wepy",
+	"miniprogramRoot": "dist/",
+	"compilers": {
+		"babel": {
+			"presets": [
+				"env"
+			],
+			"plugins": [
+				"transform-export-extensions",
+				"syntax-export-extensions"
+			]
+		}
+	},
+	"libVersion": "2.4.2",
+	"condition": {}
+}

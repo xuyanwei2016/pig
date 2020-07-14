@@ -1,0 +1,193 @@
+<template>
+  <view class="container">
+    <view class="search-box">
+      <input class="search-input" confirm-type="search" placeholder="搜索症状、猪病和用药" value="{{listQuery.keyword}}" @input="setSearchText" />
+      <button class="primary-btn" type="primary" size="mini" @tap="search">搜索</button>
+    </view>
+    <view class="tab_content">
+      <view class="tab_panel" wx:for="{{itemList}}" wx:key="id">
+        <!-- 跳转到详情页 -->
+         <navigator  url="./asking_for_detail?id={{item.id}}" style="display:flex;width:100%;height:100%;">
+          <view class="word-wrap">
+            <view class="msg-title {{item.askType===0? 'quick' : ''}}">{{item.text.miaoshu}}</view>
+            <view class="msg-info {{item.askType===0? 'quick' : ''}}">
+              <view wx:if="{{item.askType ===0}}" class="msg-type ask-type">快速提问</view>
+              <block wx:else>
+                <view class="msg-type expert-type">问专家</view>
+                <view class="expert">
+                  <image class="icon" src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/img/expert-icon.png"/>
+                  {{item.expert}}
+                </view>
+              </block>
+              <view>{{item.publishDate}}</view>
+              <view class="commentNum">
+                <image class="icon" src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/img/comment-icon.png"/>
+                {{item.replyNum?item.replyNum:0}}
+              </view>
+            </view>
+          </view>
+          <view class="img_box" wx:if="{{item.askType===0}}">
+            <image class="image" mode="aspectFill" src="{{imgPath}}{{item.text.ImgPath[0]}}" lazy-load="true"/>
+          </view>
+          <image wx:if="{{item.adopt}}" class="accept-icon" src="http://192.168.2.230:9096/file/file/?fileName=pigIMG/img/acception.png"/>
+         </navigator>
+      </view>
+      <i-load-more tip="{{loadMore.tip}}" loading="{{ loadMore.status }}" />
+      
+    </view>
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import api from '@/api/api'
+import tip from '@/utils/tip'
+import { wxRequest, requestPath } from '@/utils/wxRequest'
+
+export default class Searchbox extends wepy.page {
+  config = {
+    navigationBarTitleText: '搜索',
+    enablePullDownRefresh: true
+  }
+  data = {
+    itemList: [],
+    loadMore: {
+      status: true,
+      tip: '加载中'
+    },
+    listQuery:{
+      talkType:0,
+      pageNum: 1,
+      pageSize: 10,
+      keyword:''
+    },
+    imgPath:null,
+
+  }
+  methods = {
+    setSearchText(e){
+      this.listQuery.keyword = e.detail.value
+      console.log(this.listQuery.keyword);
+    },
+    search(){
+      this.imgPath = requestPath.ImgPath
+      this.listQuery.pageNum =1
+      this.itemList=[]
+      this.getList()
+
+    }
+  }
+
+  async getList(){//获取列表
+    let that = this
+    let jso = await api.getTalkListApi({query: this.listQuery})
+    if (jso.data.status) {
+      that.listQuery.maxPage = jso.data.data.pages
+      for (let a = 0; a < jso.data.data.list.length; a++) {
+        that.itemList.push(jso.data.data.list[a])
+      }
+      for(let i=0;i<that.itemList.length;i++){
+        that.itemList[i].text = JSON.parse(that.itemList[i].text)             //解析text
+        if(that.itemList[i].text.miaoshu){
+          if(that.itemList[i].text.miaoshu.length>=20){                         //判断描述的长度是否大于20
+            that.itemList[i].text.miaoshu = that.itemList[i].text.miaoshu.substr(0,19)
+          }
+        }
+      }
+      that.listQuery.maxPage = jso.data.data.pages
+      that.$apply()
+    } else {
+      tip.error(jso.data.msg)
+    }
+
+  }
+
+
+  onPullDownRefresh() { //下拉刷新
+    this.getList().then(() => {
+      wepy.stopPullDownRefresh()
+    })
+  }
+  onReachBottom() { //上拉加载
+    if (this.listQuery.pageNum < this.listQuery.maxPage) {
+      this.listQuery.pageNum++
+      this.getList()
+      this.$apply()
+    } else {
+      this.LoadMore= {
+        status: false,
+        tip: '暂无更多'
+      }
+    }
+  }
+}
+</script>
+
+<style lang="less">
+@green: #4FAF6E;
+.swiper{
+  height: 344rpx;
+}
+.ask-panel{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 276rpx;
+  margin: 62rpx 24rpx 28rpx;
+  padding: 44rpx 0;
+  font-size: 26rpx;
+  border-radius: 8rpx;
+  box-shadow: 0 0 20rpx rgba(1, 2, 2, .08);
+  box-sizing: border-box;
+  text-align: center;
+  .panel-title{
+    font-size: 38rpx;
+    font-weight: bold;
+    line-height: 1;
+  }
+  .panel-detail{
+    color: #999;
+    .minute{
+      color: #F48D0E;
+    }
+  }
+  .nav-btn{
+    display: inline-block;
+    width: 176rpx;
+    height: 56rpx;
+    line-height: 56rpx;
+    color: @green;
+    border: 1rpx solid @green;
+    border-radius: 28rpx;
+    &:first-of-type{margin-right: 40rpx;}
+  }
+}
+.answer-title{
+  display: flex;
+  align-items: center;
+  height: 107rpx;
+  color: #333;
+  font-size: 32rpx;
+  font-weight: bold;
+  border-bottom: 1rpx solid #EBEBEB;
+  .QA-icon{
+    width: 44rpx;
+    height: 40rpx;
+    margin: 0 24rpx;
+  }
+}
+.tab_panel{
+  position: relative;
+}
+.accept-icon{
+  position: absolute;
+  top: 102rpx;
+  left: 368rpx;
+  width: 70rpx;
+  height: 70rpx;
+}
+.search-box{
+  position: unset;
+  margin-top: 16rpx;
+}
+</style>

@@ -1,0 +1,163 @@
+<style lang='less'>
+@import 'styles/index';
+</style>
+
+<script>
+import wepy from 'wepy';
+import 'wepy-async-function';
+import QQMapWX from '@/utils/qqmap-wx-jssdk.min'
+import { setStore } from 'wepy-redux';
+import configStore from './store';
+
+
+const store = configStore();
+setStore(store);
+
+export default class extends wepy.app {
+  config = {
+    pages: [      
+      'pages/index',
+      // 'pages/nationwide_price',
+      'pages/my',
+      'pages/ask_detail',
+      'pages/question',
+      "pages/openclass_details",
+      'pages/hot_details',
+      'pages/publish',
+      'pages/my_question',  
+      'pages/search_box',
+      'pages/my_offer',
+      'pages/my_post',    
+      'pages/class_details_reply',
+      'pages/my_answer',
+      'pages/quick_ask',
+      'pages/offer',
+      'pages/asking_for_detail',
+      'pages/search',
+      'pages/class_details',
+      // 'pages/audit_failure',
+      // 'pages/audit_prohibit',
+      // 'pages/audit_pass',
+      'pages/audit_awaiting',
+      'pages/expert_certification',
+      'pages/nearby_price',      
+      'pages/find_expert'
+    ],
+    window: {
+      backgroundTextStyle: 'dark',
+      navigationBarBackgroundColor: '#fff',
+      navigationBarTitleText: 'WeChat',
+      navigationBarTextStyle: 'black'
+    },
+    tabBar: {
+      color: '#666',
+      selectedColor: '#4FAF6E',
+      backgroundColor: '#fff',
+      borderStyle: 'black',
+      list: [
+        {
+          pagePath: 'pages/index',
+          selectedIconPath: 'assets/img/home_s.png',
+          iconPath: 'assets/img/home.png',
+          text: '首页'
+        },
+        {
+          pagePath: 'pages/question',
+          selectedIconPath: 'assets/img/Q&A_s.png',
+          iconPath: 'assets/img/Q&A.png',
+          text: '问答'
+        },
+        {
+          pagePath: 'pages/search',
+          selectedIconPath: 'assets/img/search_s.png',
+          iconPath: 'assets/img/search.png',
+          text: '查猪价'
+        },
+        {
+          pagePath: 'pages/my',
+          selectedIconPath: 'assets/img/my_s.png',
+          iconPath: 'assets/img/my.png',
+          text: '我的'
+        }
+      ]
+    },
+    networkTimeout: {
+      request: 60000,
+      connectSocket: 60000,
+      uploadFile: 60000,
+      downloadFile: 60000
+    }
+  };
+
+  globalData = {
+    userInfo: null
+  };
+
+  constructor() {
+    super();
+    this.use('requestfix');
+    this.use('promisify');
+
+  }
+
+  onLaunch() {
+    wx.showTabBarRedDot({index:1})
+  }
+
+  onShow () {//定位功能
+    
+    this.getWxlocation(); //获取用户位置
+  }
+
+  async getWxlocation () {//腾讯定位
+    wx.getLocation({ //微信定位
+      type: 'wgs84',
+      success(res) {
+        var getLocation = new QQMapWX({
+          key: '5CWBZ-TJSW4-YH3UX-XQM23-KPQGE-JKFBJ' // 必填
+        });
+        getLocation.reverseGeocoder({
+          location: {
+            latitude: res.latitude,
+            longitude: res.longitude
+          },
+          success: function(res) {
+            const address = res.result.address_component;
+            wx.setStorageSync('province', address.province);
+            wx.setStorageSync('city', address.city);
+            wx.setStorageSync('county', address.district);
+          }
+        });
+
+      }
+    })
+  }
+
+
+  sleep(s) {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        resolve('promise resolved');
+      }, s * 1000);
+    });
+  }
+
+  async testAsync() {
+    const data = await this.sleep(3);
+    console.log(data);
+  }
+
+  getUserInfo(cb) {
+    const that = this;
+    // if (this.globalData.userInfo) {
+    //   return this.globalData.userInfo;
+    // }
+    // wepy.getUserInfo({
+    //   success(res) {
+    //     that.globalData.userInfo = res.userInfo;
+    //     cb && cb(res.userInfo);
+    //   }
+    // });
+  }
+}
+</script>
